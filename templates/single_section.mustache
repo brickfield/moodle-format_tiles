@@ -87,7 +87,7 @@
             {{#from_ajax}}
                 <div class="sectionbuttons">
                         <span class="sectionbutton closesectionbtn pull-right" id="closesectionbtn-{{tileid}}"
-                              title="{{#str}}close, format_tiles{{/str}}" tabindex="3" data-section="{{tileid}}">
+                              title="{{#str}}close, format_tiles{{/str}}" data-section="{{tileid}}">
                             {{#pix}}close, format_tiles, {{#str}}close, format_tiles{{/str}}{{/pix}}
                         </span>
                     {{#canedit}}
@@ -124,7 +124,7 @@
 
             <div class="pagesechead">
                 <div class="sectiontitlecontainer">
-                    <div class="sectiontitle" id="sectiontitle{{tileid}}" tabindex="3">
+                    <div class="sectiontitle" id="sectiontitle{{tileid}}">
                         <h2>{{#isediting}}{{{inplace_editable_title}}}{{/isediting}}{{^isediting}}{{{title}}}{{/isediting}}</h2>
                         {{#hidden}}<span class="icon20" id="hiddeneye" title="Hidden"></span>{{/hidden}}
                     </div>

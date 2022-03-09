@@ -186,16 +186,6 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                             $(Selector.TILEID + contentArea.attr('data-section')).focus();
                         }
                     });
-                    activities.on(Event.KEYDOWN, function (e) {
-                        if (e.keyCode === Keyboard.RETURN) {
-                            var toClick = $(e.currentTarget).find("a");
-                            if (toClick.hasClass(ClassNames.LAUNCH_CM_MODAL)) {
-                                toClick.click();
-                            } else if (toClick.attr("href") !== undefined) {
-                                window.location = toClick.attr("href");
-                            }
-                        }
-                    });
                     if (!isMobile) {
                         activities.last().on(Event.KEYDOWN, function (e) {
                             if (e.keyCode === Keyboard.TAB && !e.shiftKey
@@ -298,8 +288,9 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                 sectionIsOpen = true;
                 openTile = tileId;
 
-                // For users with screen readers, move focus to the first item within the tile.
-                contentArea.find(Selector.ACTIVITY).first().focus();
+                // For users with screen readers, move focus to the first actionable item within the tile.
+                // This will be the first anchor tag on the activity.
+                contentArea.find("a").first().focus();
 
                 // If we have any iframes in the section which were previous emptied out, re-populate.
                 // This will happen if we have previously closed a section with videos in, and they were muted.
@@ -955,17 +946,12 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
 
                         // If return is pressed while an item is in focus, click the item.
                         // This is to make the tiles keyboard navigable for users using screen readers.
-                        // User tabbing between tiles is handled by tabindex in the HTML.
                         // Once the tile is clicked, the expand tile function will move focus to the first content item.
-                        // On escape key, we clear all selections and collapse tiles (handled above not here).
                         $(Selector.TILE).on(Event.KEYDOWN, function (e) {
                             if (e.keyCode === Keyboard.RETURN) { // Return key pressed.
                                 $(e.currentTarget).click();
                             }
                         });
-
-                        // Move focus to the first tile in the course (not sec zero contents if present).
-                        $("ul.tiles .tile").first().focus();
                     }
 
                     // If Adaptable theme is being used, and Glossary auto link filter is on, we need this.

@@ -6,6 +6,17 @@
     margin: auto;
     padding: 0;
 }
+
+.format-tiles .subtile_inner a:focus {
+    background: unset;
+    box-shadow: unset;
+    text-decoration: underline;
+}
+
+.format-tiles .activity .label_content a:focus {
+    text-decoration: underline;
+}
+
 .format-tiles ul.tiles.expanded {
     max-height: unset;
     overflow: visible;
@@ -390,13 +401,15 @@
     color: #818a91;
 }
 
-.format-tiles .course-content ul.tiles .tile-clickable:hover {
+.format-tiles .course-content ul.tiles .tile-clickable:hover,
+.format-tiles .course-content ul.tiles .tile-clickable:focus {
     transform: translateY(-6px);
     transition: transform 0.2s ease-in-out;
     -moz-transition: transform 0.2s ease-in-out;
     -o-transition: transform 0.2s ease-in-out;
 }
-.format-tiles ul.tiles .tile:focus {
+.format-tiles ul.tiles .tile:focus,
+.format-tiles .tile-link:focus {
     outline: 1px dotted;
 }
 
@@ -1479,9 +1492,11 @@ allow tiles to be taller and thinner so can fit two side by side in portrait on 
 }
 
 .format-tiles li.activity.subtile a:hover,
-.format-tiles #page-content li.activity.subtile a:hover {
+.format-tiles #page-content li.activity.subtile a:hover,
+.format-tiles li.activity.subtile a:focus,
+.format-tiles #page-content li.activity.subtile a:focus {
     color: #000;
-    text-decoration: none;
+    text-decoration: underline;
 }
 
 .format-tiles .subtiles .completioncheckbox {
@@ -1502,7 +1517,8 @@ allow tiles to be taller and thinner so can fit two side by side in portrait on 
 .format-tiles .subtiles .completioncheckbox.completion-auto .completion-icon {
     margin-top: 2px;
 }
-.format-tiles li.activity button[data-action="change-completion-status"]:hover {
+.format-tiles li.activity button[data-action="change-completion-status"]:hover,
+.format-tiles li.activity button[data-action="change-completion-status"]:focus {
     border: 3px solid orange;
     border-radius: 50%;
     transition: border 300ms ease-in-out;

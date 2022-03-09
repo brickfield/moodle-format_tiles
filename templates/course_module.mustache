@@ -102,7 +102,6 @@
 {{/hasSpacersBefore}}
 <li class="activity{{#useSubtiles}}{{^is_label}} subtile{{/is_label}}{{/useSubtiles}} {{#is_label}}fullwidth{{/is_label}} {{modname}} modtype_{{modname}} {{modResourceType}}{{^clickable}} unclickable {{/clickable}} launch-tiles-{{launchtype}} position-relative {{extraclasses}}"
     id="module-{{cmid}}" data-modtype="{{modname}}{{#modResourceType}}_{{{modResourceType}}}{{/modResourceType}}"
-    tabindex="3"
     data-cmid="{{cmid}}"
     data-modinstance="{{modinstance}}"
     {{#pluginfileUrl}}data-url="{{{pluginfileUrl}}}"{{/pluginfileUrl}}
@@ -151,7 +150,9 @@
                                     <h4 class="activitytitle">{{modtitle}}</h4>
                                 {{/clickable}}
                         </div>
-                        {{#clickable}}<a class="clickable-region" href="{{url}}" data-action="launch-tiles-{{launchtype}}"{{#onclick}} onclick="{{onclick}}"{{/onclick}}></a>{{/clickable}}
+                        {{#clickable}}<a class="clickable-region" {{$useSubtiles}} tabindex="-1" {{/useSubtiles}} href="{{url}}" 
+                                        data-action="launch-tiles-{{launchtype}}"{{#onclick}} onclick="{{onclick}}"{{/onclick}}></a>
+                        {{/clickable}}
                     {{/isediting}}
 
                     {{#isediting}}
