@@ -47,8 +47,8 @@
         }
 }}
 <li class="tile{{#hidden}} tile-hidden{{/hidden}}{{#restricted}} tile-restricted{{/restricted}}{{#isactive}} current{{/isactive}}{{#userclickable}} tile-clickable{{/userclickable}} {{extraclasses}}"
-    id="tile-{{tileid}}" data-section="{{tileid}}" data-true-sectionid="{{secid}}" tabindex="2" aria-role="button"{{#hastilephoto}}{{{phototileinlinestyle}}}{{/hastilephoto}}>
-    <a class="tile-link"{{#userclickable}} href="{{{config.wwwroot}}}/course/view.php?id={{courseid}}&section={{tileid}}"{{/userclickable}}
+    id="tile-{{tileid}}" tabindex="0" data-section="{{tileid}}" data-true-sectionid="{{secid}}" role="button"{{#hastilephoto}}{{{phototileinlinestyle}}}{{/hastilephoto}}>
+    <a class="tile-link" tabindex="-1" {{#userclickable}} href="{{{config.wwwroot}}}/course/view.php?id={{courseid}}&section={{tileid}}"{{/userclickable}}
        data-section="{{tileid}}" id="sectionlink-{{tileid}}">
 
         {{^hastilephoto}}
