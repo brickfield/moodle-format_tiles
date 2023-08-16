@@ -76,7 +76,7 @@ class inline_css_output implements \renderable, \templatable {
      * Export the data for the mustache template.
      * @see format_tiles_width_template_data()
      * @param \renderer_base $output
-     * @return array|\stdClass
+     * @return array
      * @throws \dml_exception
      * @throws \moodle_exception
      */
@@ -104,8 +104,12 @@ class inline_css_output implements \renderable, \templatable {
             // The best values here vary by theme and browser, so mostly come from admin setting.
             // If the site admin sets background opacity to solid then it doesn't matter if the lines overlap.
             $outputdata['phototilefontsize'] = 20;
-            $outputdata['phototiletextpadding'] = (float)get_config('format_tiles', 'phototitletitlepadding') / 10;
-            $outputdata['phototiletextlineheight'] = (float)get_config('format_tiles', 'phototitletitlelineheight') / 10;
+            $outputdata['phototiletextpadding'] = number_format(
+                (float)get_config('format_tiles', 'phototitletitlepadding') / 10, 1
+            );
+            $outputdata['phototiletextlineheight'] = number_format(
+                (float)get_config('format_tiles', 'phototitletitlelineheight') / 10, 1
+            );
         }
 
         if ($this->course->courseusebarforheadings != 0 && $this->course->courseusebarforheadings != 'standard') {
@@ -148,14 +152,16 @@ class inline_css_output implements \renderable, \templatable {
         global $PAGE;
         // Get tile colours to echo in CSS.
         $basecolour = '';
+
         if (!(get_config('format_tiles', 'followthemecolour'))) {
             if (!$basecolour = $course->basecolour) {
                 // If no course tile colour is set, use plugin default colour.
                 $basecolour = get_config('format_tiles', 'tilecolour1');
             }
         }
+
         // We are following theme's main colour so find out what it is.
-        if (!$basecolour || !hexdec($basecolour)) {
+        if (!$basecolour || !preg_match('/^#[a-f0-9]{6}$/i', $basecolour)) {
             // If boost theme is in use, it uses "brandcolor" so try to get that if current theme has it.
             $basecolour = get_config('theme_' . $PAGE->theme->name, 'brandcolor');
             if (!$basecolour) {
@@ -163,7 +169,7 @@ class inline_css_output implements \renderable, \templatable {
                 $basecolour = get_config('theme_' . $PAGE->theme->name, 'themecolor');
             }
         }
-        if (!$basecolour) {
+        if (!$basecolour || !preg_match('/^#[a-f0-9]{6}$/i', $basecolour)) {
             // If still no colour set, use a default colour.
             $basecolour = '#1670CC';
         }

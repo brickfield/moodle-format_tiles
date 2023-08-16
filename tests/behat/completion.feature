@@ -1,5 +1,6 @@
 @format @format_tiles @format_tiles_completion @javascript
-Feature: Progress indicators can be used to change progress status and changes are reflected in database
+
+Feature: Progress indicators can be used to change progress status and changes are reflected in database (without subtiles)
 
   Background:
     Given the following "users" exist:
@@ -56,8 +57,6 @@ Feature: Progress indicators can be used to change progress status and changes a
       | assumedatastoreconsent | 1        | format_tiles |
       | reopenlastsection      | 0        | format_tiles |
       | usejavascriptnav       | 1        | format_tiles |
-      | jsmaxstoreditems       | 0        | format_tiles |
-    # We set jsmaxstoreditems to zero as otherwise when we switch between subtiles and tiles format we may not see an immediate change in display
 
   @javascript
   Scenario: Log in as student and check/uncheck activities - results correctly reach database
@@ -70,20 +69,29 @@ Feature: Progress indicators can be used to change progress status and changes a
     And I click on tile "1"
     And I wait until the page is ready
 
-    And I click format tiles progress indicator for "Test page 1a"
-    Then format_tiles progress for "Test page 1a" in "Course 1" is "1" in the database
+#    And I click format tiles progress indicator for "Test page 1a"
+    And I toggle the manual completion state of "Test page 1a"
+    And I wait until the page is ready
+    Then format_tiles progress for "page" called "Test page 1a" in "Course 1" is "1" in the database
+    And I wait until the page is ready
     And format_tiles progress indicator for tile "1" is "1" out of "2"
 
-    And I click format tiles progress indicator for "Test page 1b"
-    Then format_tiles progress for "Test page 1b" in "Course 1" is "1" in the database
+#    And I click format tiles progress indicator for "Test page 1b"
+    And I toggle the manual completion state of "Test page 1b"
+    Then format_tiles progress for "page" called "Test page 1b" in "Course 1" is "1" in the database
+    And I wait until the page is ready
     And format_tiles progress indicator for tile "1" is "2" out of "2"
 
-    And I click format tiles progress indicator for "Test page 1a"
-    Then format_tiles progress for "Test page 1a" in "Course 1" is "0" in the database
+#    And I click format tiles progress indicator for "Test page 1a"
+    And I toggle the manual completion state of "Test page 1a"
+    Then format_tiles progress for "page" called "Test page 1a" in "Course 1" is "0" in the database
+    And I wait until the page is ready
     And format_tiles progress indicator for tile "1" is "1" out of "2"
 
-    And I click format tiles progress indicator for "Test page 1b"
-    Then format_tiles progress for "Test page 2b" in "Course 1" is "0" in the database
+#    And I click format tiles progress indicator for "Test page 1b"
+    And I toggle the manual completion state of "Test page 1b"
+    Then format_tiles progress for "page" called "Test page 2b" in "Course 1" is "0" in the database
+    And I wait until the page is ready
     And format_tiles progress indicator for tile "1" is "0" out of "2"
 
   @javascript
@@ -96,20 +104,24 @@ Feature: Progress indicators can be used to change progress status and changes a
     And I click on tile "1"
     And I wait until the page is ready
 
-    And I click format tiles progress indicator for "Test page 1a"
-    Then format_tiles progress for "Test page 1a" in "Course 1" is "1" in the database
+#    And I click format tiles progress indicator for "Test page 1a"
+    And I toggle the manual completion state of "Test page 1a"
+    Then format_tiles progress for "page" called "Test page 1a" in "Course 1" is "1" in the database
     And format_tiles progress indicator for tile "1" is "1" out of "2"
 
-    And I click format tiles progress indicator for "Test page 1b"
-    Then format_tiles progress for "Test page 1b" in "Course 1" is "1" in the database
+#    And I click format tiles progress indicator for "Test page 1b"
+    And I toggle the manual completion state of "Test page 1b"
+    Then format_tiles progress for "page" called "Test page 1b" in "Course 1" is "1" in the database
     And format_tiles progress indicator for tile "1" is "2" out of "2"
 
+#    And I click format tiles progress indicator for "Test page 1a"
     And I click format tiles progress indicator for "Test page 1a"
-    Then format_tiles progress for "Test page 1a" in "Course 1" is "0" in the database
+    Then format_tiles progress for "page" called "Test page 1a" in "Course 1" is "0" in the database
     And format_tiles progress indicator for tile "1" is "1" out of "2"
 
-    And I click format tiles progress indicator for "Test page 1b"
-    Then format_tiles progress for "Test page 1b" in "Course 1" is "0" in the database
+#    And I click format tiles progress indicator for "Test page 1b"
+    And I toggle the manual completion state of "Test page 1b"
+    Then format_tiles progress for "page" called "Test page 1b" in "Course 1" is "0" in the database
     And format_tiles progress indicator for tile "1" is "0" out of "2"
-
-#    TODO check that the completion values shown on the tile and overall are complete when these items change
+#
+##    TODO check that the completion values shown on the tile and overall are complete when these items change

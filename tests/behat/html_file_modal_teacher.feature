@@ -15,6 +15,10 @@ Feature: HTML file can be set to open in modal windows with subtiles off
     And the following "activities" exist:
       | activity | name           | intro                 | course | idnumber | section | visible |
       | page     | Test page name | Test page description | C1     | page1    | 1       | 1       |
+    And the following "activities" exist:
+      | activity | name           | intro                 | course | idnumber | section | visible | completion | defaultfilename                              | uploaded |
+      | page     | Test page name | Test page description | C1     | page1    | 1       | 1       | 0          |                                              | 0        |
+      | resource | Test HTML file | File description      | C1     | pdf1     | 1       | 1       | 1          | course/format/tiles/tests/fixtures/test.html | 1        |
     And the following "course enrolments" exist:
       | user     | course | role           |
       | student1 | C1     | student        |
@@ -27,31 +31,11 @@ Feature: HTML file can be set to open in modal windows with subtiles off
       | assumedatastoreconsent | 1        | format_tiles |
       | reopenlastsection      | 0        | format_tiles |
       | usejavascriptnav       | 1        | format_tiles |
-      | jsmaxstoreditems       | 0        | format_tiles |
-    # We set jsmaxstoreditems to zero as otherwise when we switch between subtiles and tiles format we may not see an immediate change in display
+
     When I log in as "teacher1"
     And format_tiles subtiles are off for course "Course 1"
     And I am on "Course 1" course homepage with editing mode on
-    And I wait until the page is ready
-    And I follow "Collapse all"
-    And I wait until the page is ready
-    And I expand section "1" for edit
-    And I wait until the page is ready
-    And I wait "3" seconds
-    And I add a "File" to section "1"
-    And I wait until the page is ready
-
-    And I set the following fields to these values:
-      | Name        | Test HTML file         |
-      | Description | File description       |
-    And I set the field "Completion tracking" to "Students can manually mark the activity as completed"
-    And I upload "course/format/tiles/tests/fixtures/test.html" file to "Select files" filemanager
-    And I expand all fieldsets
-    And I set the field "Show type" to "1"
-    And I press "Save and return to course"
     Then I should see "Test HTML file"
-    And I wait "2" seconds
-    And I am on "Course 1" course homepage
     And I log out tiles
 
   #  First check can see the HTML with subtiles off
@@ -66,10 +50,17 @@ Feature: HTML file can be set to open in modal windows with subtiles off
     And I wait until the page is ready
     Then "Test HTML file" "dialogue" should be visible
 #    TODO test that we can see "Test HTML file content" too (is in embedded HTML document virtual element)?
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
+
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
+
     And "Close" "button" should exist in the "Test HTML file" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test HTML file" "dialogue"
     And I wait until the page is ready
     And "Test HTML file" "dialogue" should not be visible
     And I click on close button for tile "1"
@@ -87,10 +78,15 @@ Feature: HTML file can be set to open in modal windows with subtiles off
     And I wait until the page is ready
     Then "Test HTML file" "dialogue" should be visible
     #    TODO test that we can see "Test HTML file content" too (is in embedded HTML document virtual element)?
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
     And "Close" "button" should exist in the "Test HTML file" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test HTML file" "dialogue"
     And I wait until the page is ready
     And "Test HTML file" "dialogue" should not be visible
     And I click on close button for tile "1"

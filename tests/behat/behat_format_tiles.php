@@ -102,7 +102,8 @@ class behat_format_tiles extends behat_base {
     /**
      * For a given page, check that its progress indicator shows a certain value (i.e. complete or not).
      *
-     * @Then /^format_tiles progress for "(?P<activitytitle_string>(?:[^"]|\\")*)" in "(?P<coursefullname_string>(?:[^"]|\\")*)" is "(?P<value>\d+)" in the database$/
+     * @Then /^format_tiles progress for "(?P<modtype_string>(?:[^"]|\\")*)" called "(?P<activitytitle_string>(?:[^"]|\\")*)" in "(?P<coursefullname_string>(?:[^"]|\\")*)" is "(?P<value>\d+)" in the database$/
+     * @param string $modtype
      * @param string $activitytitle
      * @param string $coursefullname
      * @param int $value
@@ -110,39 +111,46 @@ class behat_format_tiles extends behat_base {
      * @throws dml_exception
      * @throws moodle_exception
      */
-    public function progress_indicator_for_page_in_is_set_to($activitytitle, $coursefullname, $value) {
+    public function progress_indicator_for_page_in_is_set_to($modtype, $activitytitle, $coursefullname, $value) {
         // @codingStandardsIgnoreEnd.
         global $DB;
         $user = $this->get_session_user();
         $courseid = $DB->get_field('course', 'id', array('fullname' => $coursefullname), MUST_EXIST);
         $modinfo = get_fast_modinfo($courseid);
-        $cminfos = $modinfo->get_instances_of('page');
-        $pagecms = [];
+        $cminfos = $modinfo->get_instances_of($modtype);
+        $cms = [];
         foreach ($cminfos as $cminfo) {
-            $pagecms[$cminfo->name] = $cminfo->id;
+            $cms[$cminfo->name] = $cminfo->id;
         }
         $this->wait_for_pending_js(); // Wait for AJAX request to complete.
         $this->getSession()->wait(1000);
+        if (!isset($cms[$activitytitle])) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+            "Activity type '$modtype' title '$activitytitle' not found in $coursefullname."
+                        . "Available cms ". json_encode(array_keys($cms)),
+                $this->getSession()
+            );
+        }
         $completionstate = $DB->get_field(
             'course_modules_completion',
             'completionstate',
             array(
-                'coursemoduleid' => $pagecms[$activitytitle],
+                'coursemoduleid' => $cms[$activitytitle],
                 'userid' => $user->id
             )
         );
-        if ($completionstate == $value || !$completionstate && !$value) {
+        if (($completionstate == $value) || (!$completionstate && !$value)) {
             return;
-        } else if ($completionstate == false) {
+        } else if ($completionstate === false) {
             throw new \Behat\Mink\Exception\ExpectationException(
-                "Completion state should be " . $value . " but no record found for " . $activitytitle,
+                "Completion state should be $value but no record found for cmid $cms[$activitytitle] title $activitytitle",
                 $this->getSession()
             );
         } else {
             throw new \Behat\Mink\Exception\ExpectationException(
                 "Completion state should be " . $value
                 . " but found '" . $completionstate
-                . "' for " . $activitytitle . ' cmid ' . $pagecms[$activitytitle],
+                . "' for cm type " . $modtype . ' title ' . $activitytitle . ' cmid ' . $cms[$activitytitle],
                 $this->getSession()
             );
         }
@@ -200,7 +208,7 @@ class behat_format_tiles extends behat_base {
      * @throws Exception
      */
     public function i_expand_section_for_edit($tileumber) {
-        $tileid = behat_context_helper::escape("expand" . $tileumber);
+        $tileid = behat_context_helper::escape("collapssesection" . $tileumber);
 
         // Click the tile.
         $this->wait_for_pending_js();
@@ -261,19 +269,12 @@ class behat_format_tiles extends behat_base {
     /**
      * I click a certain activity.
      *
-     * @Given /^I click format tiles activity "(?P<activitytitle_string>(?:[^"]|\\")*)"$/
-     * @param string $activitytitle
+     * @Given /^I click format tiles activity "(?P<activityname_string>(?:[^"]|\\")*)"$/
+     * @param string $activityname
      * @throws Exception
      */
-    public function click_format_tiles_activity($activitytitle) {
-        // Var $xpath is to find the li (the ancestor) which contains an element where the text is activity name.
-        $xpath = "//text()[contains(.,'" . $activitytitle . "')]/ancestor::*[contains(@class, 'instancename')]";
-        $this->execute('behat_general::wait_until_the_page_is_ready');
-        if ($this->running_javascript()) {
-            $this->wait_for_pending_js();
-            $this->getSession()->wait(self::REDUCED_TIMEOUT * 1000);
-        }
-        $this->execute("behat_general::i_click_on", array($this->escape($xpath), "xpath_element"));
+    public function click_format_tiles_activity($activityname) {
+        $this->execute("behat_general::i_click_on_in_the", [$this->escape($activityname), 'link', '#page-content', 'css_element']);
     }
 
     /**
@@ -284,12 +285,8 @@ class behat_format_tiles extends behat_base {
      * @throws Exception
      */
     public function i_click_progress_indicator_for($activitytitle) {
-        $activitytitle = behat_context_helper::escape($activitytitle);
-
-        // Click the button.
-        $xpath = "//li[contains(@class, 'activity') and @data-title="
-            . $activitytitle . "]/descendant::button[@title=\"Click to toggle completion status\"][1]";
-        $this->execute("behat_general::i_click_on", array($xpath, "xpath_element"));
+        $selector = "button[data-action=toggle-manual-completion][data-activityname='{$activitytitle}']";
+        $this->execute("behat_general::i_click_on", [$selector, "css_element"]);
         $this->execute('behat_general::wait_until_the_page_is_ready');
         $this->wait_for_pending_js();  // Important to wait for pending JS here so as await AJAX response.
     }
@@ -397,7 +394,7 @@ class behat_format_tiles extends behat_base {
         );
 
         if ($this->running_javascript()) {
-            $this->getSession()->wait(self::TIMEOUT * 1000, self::PAGE_READY_JS);
+            $this->getSession()->wait(self::get_timeout() * 1000, self::PAGE_READY_JS);
         }
     }
 
@@ -458,5 +455,30 @@ class behat_format_tiles extends behat_base {
             );
         }
         return $node->getAttribute("style");
+    }
+
+    // @codingStandardsIgnoreStart.
+    /**
+     * Check the "This will delete Tile x" message.
+     * Moodle 4.1 and earlier has a different message, so we have this function to avoid separate plugin versions.
+     * E.g. "This will delete Tile 5 and all the activities it contains".
+     * @Then /^I should see section confirm delete message for "(?P<text_string>(?:[^"]|\\")*)"$/
+     * @param string $sectionname
+     * @return bool
+     * @throws coding_exception
+     */
+    public function should_see_section_confirm_delete($sectionname) {
+        // @codingStandardsIgnoreEnd.
+        global $CFG;
+        $moodlerelease = $CFG->release;
+        if (preg_match('/^(\d+\.\d)/', $moodlerelease, $matches)) {
+            $moodlerelease = $matches[1];
+        }
+        $expectedstring = is_numeric($moodlerelease) && (float)$moodlerelease < 4.2
+            ? get_string('confirmdeletesection', 'moodle', $sectionname)
+            : get_string('sectiondelete_info', 'courseformat', (object)['name' => $sectionname]);
+
+        $this->execute('behat_general::assert_page_contains_text', [$expectedstring]);
+        return true;
     }
 }

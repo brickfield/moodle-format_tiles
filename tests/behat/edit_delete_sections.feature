@@ -1,4 +1,4 @@
-@format @format_tiles @edit_delete_sections @javascript
+@format @format_tiles @format_tiles_edit_delete_sections @javascript
 Feature: Sections can be edited and deleted in tiles format
   In order to rearrange my course contents
   As a teacher
@@ -30,8 +30,6 @@ Feature: Sections can be edited and deleted in tiles format
       | assumedatastoreconsent | 1        | format_tiles |
       | reopenlastsection      | 0        | format_tiles |
       | usejavascriptnav       | 1        | format_tiles |
-      | jsmaxstoreditems       | 0        | format_tiles |
-    # We set jsmaxstoreditems to zero as otherwise when we switch between subtiles and tiles format we may not see an immediate change in display
 
     And I log in as "teacher1"
     And I am on "Edit Delete Secs Course" course homepage with editing mode on
@@ -53,11 +51,10 @@ Feature: Sections can be edited and deleted in tiles format
 
   @javascript
   Scenario: Inline edit section name in tiles format
-    And I click on "Edit tile name" "link" in the "li#section-1" "css_element"
+    When I click on "Edit tile name" "link" in the "li#section-1" "css_element"
     And I set the field "New name for topic Tile 1" to "Setting up in business"
-    And I press key "13" in the field "New name for topic Tile 1"
+    And I press the enter key
     Then I should not see "Tile 1" in the "region-main" "region"
-    And "New name for topic" "field" should not exist
     And I should see "Setting up in business" in the "li#section-1" "css_element"
     And I am on "Edit Delete Secs Course" course homepage
     And I should not see "Tile 1" in the "region-main" "region"
@@ -66,15 +63,15 @@ Feature: Sections can be edited and deleted in tiles format
   Scenario: Deleting the last section in tiles format
     And I wait "1" seconds
     And I delete section "5"
-    Then I should see "Are you absolutely sure you want to completely delete \"Tile 5\" and all the activities it contains?"
-    And I press "Delete"
+    Then I should see section confirm delete message for "Tile 5"
+    And I click on "Delete" "button" in the ".modal" "css_element"
     And I should not see "Tile 5"
     And I should see "Tile 4"
 
   Scenario: Deleting the middle section in tiles format
     And I wait "1" seconds
     And I delete section "4"
-    And I press "Delete"
+    And I click on "Delete" "button" in the ".modal" "css_element"
     Then I should not see "Tile 5"
     And I should see "Tile 4"
 

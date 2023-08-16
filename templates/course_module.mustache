@@ -33,7 +33,7 @@
         * cmid - course module id
         * modname - course module name (type)
         * modnameDisplay - module name to display to user on sub tile or course mod
-        * modtitle - title to display on this sub tile or course mod
+        * activityname - title to display on this sub tile or course mod
         * modtitle_inplaceeditable - in place editable version of the title
         * modResourceType - resource type e.g. pdf,
         * is_label - is this a label
@@ -43,7 +43,7 @@
         * isEmbeddedResource - is this a resource whcih launces a modal when clicked?
         * clickable - is this item clickable by user (or click disabled?)
         * extraclasses - any extra classes
-        * isediting - is the user editing?
+        * editing - is the user editing?
         * content - some activities have content e.g. labels and pages, to be displayed in modal
         * modinstance - ID from the module table
         * url - URL for the link to launch the module,
@@ -51,7 +51,7 @@
         * cmeditmenu - HTML for course module edit menu
         * cmmove - move icon
         * availabilityinfo - availability information to display to user about this cm
-        * completionInUseForCm - are we using completion for this cm?
+        * hascompletion - are we using completion for this cm?
         * completionIsManual - is completion manual?
         * completionstring - what to display when hover over the completion icon
         * completionstate - is the item marked as complete
@@ -62,7 +62,7 @@
         "cmid": 123456,
         "modname": "label",
         "modnameDisplay": "",
-        "modtitle": "",
+        "activityname": "",
         "modtitle_inplaceeditable": "",
         "modResourceType": "",
         "is_label": 1,
@@ -72,7 +72,7 @@
         "isEmbeddedResource": 0,
         "clickable": 1,
         "extraclasses": "",
-        "isediting": 1,
+        "editing": 1,
         "content": "This is a label",
         "modinstance": "",
         "url": "",
@@ -80,7 +80,7 @@
         "cmeditmenu": "",
         "cmmove": "",
         "availabilityinfo": "",
-        "completionInUseForCm": 1,
+        "hascompletion": 1,
         "completionIsManual": 1,
         "completionstring": "Click to toggle completion status",
         "completionstate": 1,
@@ -89,164 +89,110 @@
 }}
 
 {{! if this is a label (except first one in section) we need spacer activities before it so that the previous row of subtiles has correct flexbox width }}
-{{#hasSpacersBefore}}
-    {{^isediting}}
-        <li class="subtile spacer" aria-hidden="true"></li>
-        <li class="subtile spacer" aria-hidden="true"></li>
-        <li class="subtile spacer" aria-hidden="true"></li>
-        <li class="subtile spacer" aria-hidden="true"></li>
-        <li class="subtile spacer" aria-hidden="true"></li>
-        <li class="subtile spacer" aria-hidden="true"></li>
-        <li class="subtile spacer" aria-hidden="true"></li>
-    {{/isediting}}
-{{/hasSpacersBefore}}
-<li class="activity{{#useSubtiles}}{{^is_label}} subtile{{/is_label}}{{/useSubtiles}} {{#is_label}}fullwidth{{/is_label}} {{modname}} modtype_{{modname}} {{modResourceType}}{{^clickable}} unclickable {{/clickable}} launch-tiles-{{launchtype}} {{extraclasses}}"
-    id="module-{{cmid}}" data-modtype="{{modname}}{{#modResourceType}}_{{{modResourceType}}}{{/modResourceType}}"
-    tabindex="3"
-    data-cmid="{{cmid}}"
-    data-modinstance="{{modinstance}}"
-    {{#pluginfileUrl}}data-url="{{{pluginfileUrl}}}"{{/pluginfileUrl}}
-    {{#secondaryurl}}data-url-secondary="{{{secondaryurl}}}"{{/secondaryurl}}
-    data-title="{{{modtitle}}}">
-    <div{{#useSubtiles}}{{^is_label}} class="subtile_inner"{{/is_label}}{{/useSubtiles}} {{^useSubtiles}} class="mod-indent-outer"{{/useSubtiles}}>
-        {{^useSubtiles}}
-            {{#indentlevel}}
-                <div class="mod-indent mod-indent-{{indentlevel}}"></div>
-            {{/indentlevel}}
-        {{/useSubtiles}}
-        <div class="{{^is_label}}activityinstance{{/is_label}}">
-            {{#is_label}}
-                {{#clickable}}
-                    {{! clickable really means user is allowed to see content - }}
-                    <span class="label_content {{extraclasses}}"
-                          id="label_content_{{cmid}}">{{{content}}}</span>
-                {{/clickable}}
-                {{#availabilitymessage}}
-                    {{>format_tiles/availability_info}}
-                {{/availabilitymessage}}
-            {{/is_label}}
 
-            {{^is_label}}
-                {{#useSubtiles}}
-                    <div class="activitytype">{{modnameDisplay}}</div>
-                    {{^isediting}}
-                        <div class="instancename"{{#clickable}} data-action="launch-tiles-{{launchtype}}"{{/clickable}}>
-                                {{#clickable}}
-                                    {{#isEmbeddedResource}}
-                                        <h4 class="activitytitle">
-                                            <a {{#extraclasses}}class="{{extraclasses}}"{{/extraclasses}} href="{{{url}}}" data-title="{{{modtitle}}}">
-                                                {{{modtitle}}}
-                                            </a>
-                                        </h4>
-                                    {{/isEmbeddedResource}}
+{{^useSubtiles}}
+    {{>format_tiles/local/content/section/cmitem}}
+{{/useSubtiles}}
+{{#useSubtiles}}
+    <li class="activity{{^is_label}} subtile{{/is_label}} {{#is_label}}fullwidth{{/is_label}} {{modname}} modtype_{{modname}} {{modResourceType}}{{^clickable}} unclickable {{/clickable}} launch-tiles-{{launchtype}}{{#photourl}} hasphoto{{/photourl}} {{#phototilesaltstyle}} altstyle{{/phototilesaltstyle}} {{extraclasses}}"
+        id="module-{{cmid}}" data-modtype="{{modname}}{{#modResourceType}}_{{{modResourceType}}}{{/modResourceType}}"
+        tabindex="3"
+        data-cmid="{{cmid}}"
+        data-modinstance="{{modinstance}}"
+        {{#photourl}} style="background-image: url({{photourl}});" {{/photourl}}
+        {{#pluginfileUrl}}data-url="{{{pluginfileUrl}}}" {{/pluginfileUrl}}
+        {{#secondaryurl}}data-url-secondary="{{{secondaryurl}}}" {{/secondaryurl}}
+        data-title="{{{activityname}}}"
+        {{#subtileicon}}
+        style="background-image: none;"
+        {{/subtileicon}}
+        {{#hascompletion}}data-completion-state="{{completionstate}}"{{/hascompletion}}
+    >
+        <div class="subtile-bg" {{^subtileicon}}style="display: none;"{{/subtileicon}}>
+            {{#subtileicon}}{{#pix}}tileicon/{{subtileicon}}, format_tiles{{/pix}}{{/subtileicon}}
+        </div>
 
-                                    {{^isEmbeddedResource}}
-                                    <h4 class="activitytitle">
-                                        <a {{#extraclasses}}class="{{extraclasses}}"{{/extraclasses}}
-                                            {{#onclick}} onclick="{{onclick}}"{{/onclick}} href="{{url}}">{{{modtitle}}}</a>
-                                    </h4>
-                                    {{/isEmbeddedResource}}
-                                {{/clickable}}
-                                {{^clickable}}
-                                    <h4 class="activitytitle">{{{modtitle}}}</h4>
-                                {{/clickable}}
-                        </div>
-                        {{#clickable}}<a class="clickable-region" href="{{url}}" data-action="launch-tiles-{{launchtype}}"{{#onclick}} onclick="{{onclick}}"{{/onclick}}></a>{{/clickable}}
-                    {{/isediting}}
+        {{#editing}}
+            <div class="tile-editing-top">
+            <span class="actions">
+                {{{cmeditmenu}}}
+            </span>
+                <span class="subtilecontrols">
+                    {{{cmmove}}}
+                </span>
+                {{^is_label}}
+                    {{#hascompletion}}
+                        {{#completionenabled}}
+                            {{>format_tiles/completion_button}}
+                        {{/completionenabled}}
+                    {{/hascompletion}}
+                {{/is_label}}
+            </div>
+        {{/editing}}
 
-                    {{#isediting}}
-                        <div>
-                            {{#modtitle_inplaceeditable}}
-                                {{>format_tiles/inplace_editable}}
-                            {{/modtitle_inplaceeditable}}
-                            {{^modtitle_inplaceeditable}}
-                                {{{modtitle}}}
-                            {{/modtitle_inplaceeditable}}
-                        </div>
-                    {{/isediting}}
-                {{/useSubtiles}}
+        {{^is_label}}
+            {{#clickable}}
+                {{^editing}}
+                    <a href="{{url}}" {{#isEmbeddedResource}} data-action="launch-tiles-resource-modal"{{/isEmbeddedResource}}{{#isEmbeddedModule}}
+                       data-action="launch-tiles-module-modal"{{/isEmbeddedModule}}{{#onclick}} onclick="{{onclick}}"{{/onclick}}
+                       data-title="{{{activityname}}}" class="instancename {{{extraclasses}}}"  data-action="launch-tiles-{{launchtype}}">
+                        {{> format_tiles/course_module_subtile_inner}}
+                    </a>
+                {{/editing}}
+                {{#editing}}
+                    <div class="cm-inner">
+                        {{> format_tiles/course_module_subtile_inner}}
+                    </div>
+                {{/editing}}
+            {{/clickable}}
+            {{^clickable}}
+                <div class="cm-inner">
+                    {{> format_tiles/course_module_subtile_inner}}
+                </div>
+            {{/clickable}}
+            {{#hascompletion}}
+                {{#completionenabled}}
+                    {{>format_tiles/completion_button}}
+                {{/completionenabled}}
+            {{/hascompletion}}
+        {{/is_label}}
 
-                {{^useSubtiles}}
-                    {{#isediting}}
-                        <div>
-                            {{#modtitle_inplaceeditable}}
-                                {{>format_tiles/inplace_editable}}
-                            {{/modtitle_inplaceeditable}}
-                            {{^modtitle_inplaceeditable}}
-                                {{{modtitle}}}
-                            {{/modtitle_inplaceeditable}}
-                        </div>
-                    {{/isediting}}
+        {{#is_label}}
+            <div class="cm-inner">
+                {{#hascompletion}}
+                    {{#completionenabled}}
+                        {{>format_tiles/completion_button}}
+                    {{/completionenabled}}
+                {{/hascompletion}}
+                {{> format_tiles/course_module_subtile_inner}}
+            </div>
+        {{/is_label}}
 
-                    {{^isediting}}
-                        {{#clickable}}
-                            <a href="{{url}}"{{#clickable}} {{#clickable}}{{#isEmbeddedResource}} data-action="launch-tiles-resource-modal"{{/isEmbeddedResource}}{{#isEmbeddedModule}}
-                               data-action="launch-tiles-module-modal"{{/isEmbeddedModule}}{{/clickable}}{{#onclick}} onclick="{{onclick}}"{{/onclick}}{{/clickable}}
-                               data-title="{{{modtitle}}}" class="instancename {{{extraclasses}}}"  data-action="launch-tiles-{{launchtype}}">
-                                <img src="{{iconurl}}" class="iconlarge activityicon" alt="{{{modtitle}}}"
-                                     role="presentation">
-                                <span class="activitytitle">{{{modtitle}}}</span>
-                            </a>
-                        {{/clickable}}
+        {{#dimmed}}
+            {{#clickable}}
+                <a href="{{url}}" class="dim-overlay"
+                    {{#isEmbeddedResource}} data-action="launch-tiles-resource-modal"{{/isEmbeddedResource}}
+                    {{#isEmbeddedModule}} data-action="launch-tiles-module-modal"{{/isEmbeddedModule}}
+                    {{#onclick}} onclick="{{onclick}}"{{/onclick}}>
+                </a>
+            {{/clickable}}
+            {{^clickable}}
+                <div href="{{url}}" class="dim-overlay"></div>
+            {{/clickable}}
+        {{/dimmed}}
 
-                        {{^clickable}}
-                            <span class="editingactivity instancename">
-                                <img src="{{iconurl}}" class="iconlarge activityicon" alt="{{{modtitle}}}"
-                                     role="presentation">
-                                <span class="activitytitle">{{{modtitle}}}</span>
-                            </span>
-                        {{/clickable}}
-
-                        {{{afterlink}}}
-                    {{/isediting}}
-                {{/useSubtiles}}
-
-                <div class="contentafterlink">
+        {{^is_label}}
+            <div class="contentafterlink">
+                {{#visible}}
                     {{#availabilitymessage}}
                         {{#stealth}}{{{availabilitymessage}}}{{/stealth}}
                         {{^stealth}}{{>format_tiles/availability_info}}{{/stealth}}
                     {{/availabilitymessage}}
-                </div>
-            {{/is_label}}
-
-            {{#isediting}}
-                <span class="subtilecontrols">
-                    {{{cmmove}}}
-                </span>
-            {{/isediting}}
-        </div>
-    </div>
-
-    <span class="actions">
-         {{#isediting}}
-             {{{cmeditmenu}}}
-         {{/isediting}}
-        {{#completionInUseForCm}}
-        {{! completion is enabled for this course module}}
-        {{! we only want to display a completion icon if we are using subtiles but this item is not a label,}}
-        {{! or we are not using sub tiles.  This is because in subtiles format, labels are only}}
-        {{! used to divide activity sub tiles }}
-            {{#useSubtiles}}
-                {{^is_label}}
-                    {{#completionenabled}}
-                        {{>format_tiles/completion_icon}}
-                    {{/completionenabled}}
-                {{/is_label}}
-            {{/useSubtiles}}
-            {{^useSubtiles}}
-                {{#completionenabled}}
-                    {{>format_tiles/completion_icon}}
-                {{/completionenabled}}
-            {{/useSubtiles}}
-        {{/completionInUseForCm}}
-    </span>
-    {{^useSubtiles}}
-        {{#showdescription}}
-            <div class="contentafterlink">
-                <div class="no-overflow">
-                    {{{description}}}
-                </div>
+                {{/visible}}
+                {{^visible}}
+                    {{>format_tiles/availability_info}}
+                {{/visible}}
             </div>
-        {{/showdescription}}
-    {{/useSubtiles}}
-</li>
+        {{/is_label}}
+    </li>
+{{/useSubtiles}}

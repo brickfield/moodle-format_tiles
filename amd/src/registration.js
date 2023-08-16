@@ -16,9 +16,7 @@
 /**
  * Javascript Module to help out if registration of pluign via curl fails.
  *
- * @module registration
- * @package course/format
- * @subpackage tiles
+ * @module format_tiles/registration
  * @copyright 2019 David Watson {@link http://evolutioncode.uk}
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since Moodle 3.3
@@ -48,7 +46,7 @@ define(["jquery", "core/notification", "core/config", "core/str"], function ($, 
                                 {key: "registeredthanks", component: "format_tiles"},
                                 {key: "registerclicktocomplete", component: "format_tiles"},
                                 {key: "ok", component: "format_tiles"},
-                                {key: "cancel"},
+                                {key: "cancel", component: "moodle"},
                             ];
                             str.get_strings(stringKeys).done(function (s) {
                                 Notification.confirm(

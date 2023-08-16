@@ -25,9 +25,6 @@
 namespace format_tiles\task;
 
 use format_tiles\registration_manager;
-use moodle_exception;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Class deferred_register
@@ -58,5 +55,6 @@ class deferred_register extends \core\task\adhoc_task {
             mtrace("Failed to complete deferred registration");
             mtrace($ex->getMessage());
         }
+        return false;
     }
 }

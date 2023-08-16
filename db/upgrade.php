@@ -22,8 +22,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Upgrade script for format_tiles
  * Copied in part from the script for format "Topics"
@@ -154,11 +152,18 @@ function xmldb_format_tiles_upgrade($oldversion) {
             $filerecord['filepath'],
             $filerecord['filename']
         );
-        if ($existingfile == false) {
+        if (!$existingfile) {
             $fs->create_file_from_pathname($filerecord, $path . $filerecord['filename']);
         }
 
         upgrade_plugin_savepoint(true, 2019052100, 'format', 'tiles');
+    }
+
+    if ($oldversion < 2020080629) {
+        if (strpos(get_config('format_tiles', 'documentationurl'), 'evolutioncode.uk') !== false) {
+            set_config('documentationurl', 'https://evolutioncode.uk/tiles/docs/', 'format_tiles');
+        }
+        upgrade_plugin_savepoint(true, 2020080629, 'format', 'tiles');
     }
     return true;
 }

@@ -47,9 +47,7 @@ M.course.format.process_sections = function(Y, sectionlist, response, sectionfro
         SECTIONNAME: "sectionname"
     },
     SELECTORS = {
-        SECTIONLEFTSIDE: ".left .section-handle .icon",
-        EDITACTVITIESMENU: ".right .section_action_menu a.editing_activities",
-        EDITACTIVITIESLINK: ".tile_bar_text a.editactivities"
+        SECTIONLEFTSIDE: ".left .section-handle .icon"
     };
 
     if (response.action === "move") {
@@ -65,23 +63,16 @@ M.course.format.process_sections = function(Y, sectionlist, response, sectionfro
 
         for (var i = sectionfrom; i <= sectionto; i++) {
             // Update section title.
-            sectionlist.item(i).one("." + CSS.SECTIONNAME).setContent(response.sectiontitles[i]);
-            // Update move icon.
-            ele = sectionlist.item(i).one(SELECTORS.SECTIONLEFTSIDE);
-            str = ele.getAttribute("alt");
-            stridx = str.lastIndexOf(" ");
+            var content = Y.Node.create('<span>' + response.sectiontitles[i] + '</span>');
+            sectionlist.item(i).all('.' + CSS.SECTIONNAME).setHTML(content);
+            // Update the drag handle.
+            ele = sectionlist.item(i).one(SELECTORS.SECTIONLEFTSIDE).ancestor('.section-handle');
+            str = ele.getAttribute('title');
+            stridx = str.lastIndexOf(' ');
             newstr = str.substr(0, stridx + 1) + i;
-            ele.setAttribute("alt", newstr);
-            ele.setAttribute("title", newstr); // For FireFox as "alt" is not refreshed.
-
-            // Added for "Tiles" - swap edit activities links (x2) so they point to right place.
-            ele = sectionlist.item(i).one(SELECTORS.EDITACTVITIESMENU); // Right hand link.
-            var ele2 = sectionlist.item(i).one(SELECTORS.EDITACTIVITIESLINK); // Left hand link.
-            var url = ele.getAttribute("href");
-            stridx = url.lastIndexOf("section=");
-            var newurl = url.substr(0, stridx + 8) + i; // Number 8 is length of section.
-            ele.setAttribute("href", newurl);
-            ele2.setAttribute("href", newurl);
+            ele.setAttribute('title', newstr);
+            // Update the aria-label for the section.
+            sectionlist.item(i).setAttribute('aria-label', content.get('innerText').trim());
         }
     }
 };

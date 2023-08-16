@@ -53,27 +53,35 @@
     }
 }}
 
-{{^from_ajax}}
-    {{> format_tiles/above_tiles}}
-{{/from_ajax}}
-
-{{#userdisabledjsnav}}
-    <div id="jswarning" class="alert alert-info">
+{{^jsnavuserenabled}}
+    <div id="jswarning" class="alert alert-secondary">
         {{#str}}jsdeactivated, format_tiles{{/str}}
         <a href="{{{config.wwwroot}}}/course/view.php?id={{courseid}}&stopjsnav=1">({{#str}}reactivate, format_tiles{{/str}})</a>
+        <button type="button" class="close" data-dismiss="alert">
+            <span aria-hidden="true">&times;</span>
+            <span class="sr-only">{{#str}}dismissnotification, core{{/str}}</span>
+        </button>
     </div>
-{{/userdisabledjsnav}}
-{{^userdisabledjsnav}}
+{{/jsnavuserenabled}}
+{{#jsnavuserenabled}}
     <noscript>
         {{^jsSessionDisabled}}
-            <div id="jswarning" class="alert alert-warning">{{#str}}nojswarning, format_tiles{{/str}}
+            <div id="jswarning" class="alert alert-secondary">{{#str}}nojswarning, format_tiles{{/str}}
                 {{#showJScancelLink}}
-                        <a href="{{{config.wwwroot}}}/course/view.php?id={{courseid}}&canceljssession=1">{{#str}}refresh{{/str}}</a>
+                    <a href="{{{config.wwwroot}}}/course/view.php?id={{courseid}}&stopjsnav=1">{{#str}}refresh{{/str}}</a>
                 {{/showJScancelLink}}
+                <button type="button" class="close" data-dismiss="alert">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">{{#str}}dismissnotification, core{{/str}}</span>
+                </button>
             </div>
         {{/jsSessionDisabled}}
     </noscript>
-{{/userdisabledjsnav}}
+{{/jsnavuserenabled}}
+
+{{^from_ajax}}
+    {{> format_tiles/above_tiles}}
+{{/from_ajax}}
 
 {{#showinitialpageloadingicon}}
     <a id="page-loading-icon" href="{{config.wwwroot}}/course/view.php?id={{courseid}}&skipcheck=1">
@@ -84,47 +92,19 @@
     </a>
 {{/showinitialpageloadingicon}}
 
-{{#isediting}}
-    <div class="expand-collapse-all-btns">
-        <a class="btn btn-secondary" data-action="expand-all" title="{{#str}}expandall, format_tiles{{/str}}"
-           href="{{{config.wwwroot}}}/course/view.php?id={{courseid}}&expanded=1" id="expand-all-btn">
-        {{#pix}}expand, format_tiles{{/pix}}&nbsp;{{#str}}expandall, format_tiles{{/str}}
-        </a>
-        <a class="btn btn-secondary" data-action="collaspse-all" title="{{#str}}collapsesections, format_tiles{{/str}}"
-            href="{{{config.wwwroot}}}/course/view.php?id={{courseid}}&expanded=-1" id="collapse-all-btn">
-        {{#pix}}collapse, format_tiles{{/pix}}&nbsp;{{#str}}collapsesections, format_tiles{{/str}}
-        </a>
-    </div>
-    {{#hasoutofsequencetiles}}
-        <div class="alert alert-danger" id="warning-outofsequence">
-            {{#str}}tilesoutofsequencewarning, format_tiles{{/str}}
-            <ul>
-                {{#outofsequencetilewarnings}}
-                    <li>
-                        <a href="#section-{{sectionnum}}" data-expected-section="{{expectedsectionnum}}">
-                            {{sectionname}}
-                        </a>
-                {{/outofsequencetilewarnings}}
-            </ul>
-        </div>
-    {{/hasoutofsequencetiles}}
-{{/isediting}}
-
 <ul class="tiles" id="multi_section_tiles">
-    {{#section_zero}}
-        {{> format_tiles/section_zero}}
-    {{/section_zero}}
+    {{> format_tiles/section_zero}}
 
     {{#tiles}}
-        {{^isediting}}
+        {{^editing}}
             {{> format_tiles/multi_section_tile}}
-        {{/isediting}}
-        {{#isediting}}
+        {{/editing}}
+        {{#editing}}
             {{> format_tiles/multi_section_tilebar}}
-        {{/isediting}}
+        {{/editing}}
     {{/tiles}}
 
-    {{^isediting}}
+    {{^editing}}
     {{!empty tiles at end to ensure correct flex spacing of last row}}
         <li class="tile spacer" aria-hidden="true"></li>
         <li class="tile spacer" aria-hidden="true"></li>
@@ -139,20 +119,14 @@
             <li class="section main moveablesection" style="display: none;" id="section-{{tileid}}"
                 data-section="{{tileid}}"></li>
         {{/tiles}}
-    {{/isediting}}
+    {{/editing}}
 </ul>
 
-{{#isediting}}
-    <span id="changenumsections">
-        <a data-add-sections="{{#str}}addsections, format_tiles{{/str}}" class="pull-right mt-3" href="{{{ config.wwwroot }}}/course/changenumsections.php?courseid={{courseid}}&sesskey={{sesskey}}&insertsection=0&sectionreturn=0">
-            {{#pix}}t/switch_plus, core, {{#str}}addsections, format_tiles{{/str}}{{/pix}} {{#str}}addsections, format_tiles{{/str}}
-        </a>
-    </span>
-{{/isediting}}
-
-{{#isediting}}
+{{#editing}}
     {{^from_ajax}}
         {{activity_clipboard}}
     {{/from_ajax}}
     {{{course_activity_clipboard}}}
-{{/isediting}}
+{{/editing}}
+
+<div id="format_tiles_overlay" style="position: fixed; top: 0; left: 0; background-color:rgba(0,0,0,0.5); width: 100vw; height: 100vh; display: none;"></div>

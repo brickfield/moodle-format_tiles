@@ -26,7 +26,7 @@ Feature: Show/hide course sections in format_tiles
       | assumedatastoreconsent | 1        | format_tiles |
       | reopenlastsection      | 0        | format_tiles |
       | usejavascriptnav       | 1        | format_tiles |
-      | jsmaxstoreditems       | 0        | format_tiles |
+
     And the following "activities" exist:
       | activity | name               | intro | course | idnumber  | section | visible |
       | forum    | Test visible forum 2 | intro | C1     | forrumvis | 2       | 1       |
@@ -41,7 +41,7 @@ Feature: Show/hide course sections in format_tiles
     And I add a "Forum" to section "1" and I fill the form with:
       | Forum name   | Test hidden forum 11 name        |
       | Description  | Test hidden forum 11 description |
-      | Availability | Hide from students               |
+      | Availability | Hide on course page              |
     And I wait until the page is ready
     And I wait "1" seconds
     And I add a "Forum" to section "1" and I fill the form with:
@@ -60,7 +60,7 @@ Feature: Show/hide course sections in format_tiles
     And I add a "Forum" to section "2" and I fill the form with:
       | Forum name   | Test hidden forum 21 name        |
       | Description  | Test hidden forum 21 description |
-      | Availability | Hide from students               |
+      | Availability | Hide on course page              |
     And I wait until the page is ready
     And activity in format tiles is dimmed "Test hidden forum 21 name"
 
@@ -74,7 +74,7 @@ Feature: Show/hide course sections in format_tiles
     And I add a "Forum" to section "3" and I fill the form with:
       | Forum name   | Test hidden forum 31 name        |
       | Description  | Test hidden forum 31 description |
-      | Availability | Hide from students               |
+      | Availability | Hide on course page              |
     And I wait until the page is ready
     And I wait "1" seconds
     And activity in format tiles is dimmed "Test hidden forum 31 name"
