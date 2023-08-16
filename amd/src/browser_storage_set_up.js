@@ -16,9 +16,7 @@
 /**
  * Javascript Module to help set up user needs browser storage.
  *
- * @module browser_storage_set_up
- * @package course/format
- * @subpackage tiles
+ * @module format_tiles/browser_storage_set_up
  * @copyright 2019 David Watson {@link http://evolutioncode.uk}
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since Moodle 3.3
@@ -83,15 +81,14 @@ define(["jquery"], function ($) {
 
     /**
      * Launch the window enabling the user to select whether we want to store data locally or not
-     * @param {function} cleanUpFunc the function to execute to clean data if user says no.
      */
-    var obtainUserPreference = function (cleanUpFunc) {
+    var obtainUserPreference = function () {
         require(["core/str", "core/notification"], function(str, Notification) {
             str.get_strings([
                 {key: "datapref", component: "format_tiles"},
                 {key: "dataprefquestion", component: "format_tiles"},
                 {key: "yes"},
-                {key: "cancel"}
+                {key: "cancel", component: "moodle"}
             ]).done(function (s) {
                 Notification.confirm(
                     s[0],
@@ -103,9 +100,6 @@ define(["jquery"], function ($) {
                     },
                     function() {
                         setAllowed(false);
-                        if (typeof cleanUpFunc === "function") {
-                            cleanUpFunc();
-                        }
                     }
                 );
             });
@@ -155,7 +149,7 @@ define(["jquery"], function ($) {
         },
         Enabled: Enabled,
 
-        init: function(userIdInit, assumeConsent, cleanUpFunc) {
+        init: function(userIdInit, assumeConsent) {
             userId = userIdInit;
             $(document).ready(function () {
                 Enabled.local = storageInitialCheck(storageType.local);
@@ -166,7 +160,7 @@ define(["jquery"], function ($) {
                 } else if (storageAllowed() === null && Enabled.local) {
                     // We wait 3 seconds before launching the dialog to ensure content finished loading.
                     setTimeout(function() {
-                        userChoice = obtainUserPreference(cleanUpFunc);
+                        obtainUserPreference();
                     }, 3000);
                 }
 
@@ -174,7 +168,7 @@ define(["jquery"], function ($) {
                 // show them the dialogue box to re-enter their local storage choice.
                 $('a[href*="datapref"]').click(function (e) {
                     e.preventDefault();
-                    obtainUserPreference(cleanUpFunc);
+                    obtainUserPreference();
                 });
             });
         }

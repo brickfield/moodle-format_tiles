@@ -20,9 +20,7 @@
  * which the editing user uses to select an icon for a tile or the default icon
  * for all tiles in the course
  *
- * @module      icon_picker
- * @package     course/format
- * @subpackage  tiles
+ * @module      format_tiles/icon_picker
  * @copyright   2018 David Watson {@link http://evolutioncode.uk}
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since       Moodle 3.3
@@ -123,8 +121,8 @@ define(["jquery", "core/templates", "core/ajax", "core/str", "core/notification"
                 var templateToRender = '';
                 var templateParams = {
                     tileicon: icon,
-                    tileid: sectionNum,
-                    secid: sectionId,
+                    num: sectionNum,
+                    id: sectionId,
                     isediting: 1
                 };
                 switch (imageType) {
@@ -331,7 +329,10 @@ define(["jquery", "core/templates", "core/ajax", "core/str", "core/notification"
                                     }
                                 });
                                 try {
-                                    $(".pickericon").tooltip();
+                                    const pickerIcon = $(".pickericon");
+                                    if (typeof pickerIcon.tooltip == 'function') {
+                                        pickerIcon.tooltip();
+                                    }
                                 } catch (err) {
                                     require(["core/log"], function (log) {
                                         log.debug(err);
@@ -409,7 +410,7 @@ define(["jquery", "core/templates", "core/ajax", "core/str", "core/notification"
                         // Some themes e.g. RemUI do not have a #page-content div, so use #region-main.
                         pageContent = $("#region-main");
                     }
-                    pageContent.on("click", ".launchiconpicker", function (e) {
+                    pageContent.on("click", '[data-action="launch-tiles-icon-picker"]', function (e) {
                         e.preventDefault();
                         var clickedIcon = $(e.currentTarget);
                         launchIconPicker(

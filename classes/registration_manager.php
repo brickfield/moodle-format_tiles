@@ -24,8 +24,6 @@
 
 namespace format_tiles;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Class registration_manager
  * @package format_tiles
@@ -127,13 +125,15 @@ class registration_manager {
      */
     public static function make_curl_request($data, $timeout) {
         $curl = new \curl();
-        $curl->setopt( array(
+        $curl->setopt(
+            array(
                 'CURLOPT_TIMEOUT' => $timeout,
-                'CURLOPT_CONNECTTIMEOUT' => $timeout )
+                'CURLOPT_CONNECTTIMEOUT' => $timeout,
+                'CURLOPT_URL' => self::registration_server_url(),
+                'CURLOPT_CUSTOMREQUEST' => "POST",
+                'CURLOPT_RETURNTRANSFER' => true
+            )
         );
-        $curl->setopt(CURLOPT_URL, self::registration_server_url());
-        $curl->setopt( CURLOPT_CUSTOMREQUEST, "POST");
-        $curl->setopt( CURLOPT_RETURNTRANSFER, true);
 
         $curloutput = json_decode($curl->post(self::registration_server_url(), json_encode($data)), true);
         $curloutput['http_code'] = $curl->get_info()['http_code'];
@@ -154,7 +154,7 @@ class registration_manager {
         $serverresponse = self::make_curl_request($data, 6);
         $result = self::parse_server_response(self::process_data($serverresponse));
         if ($result && $result['status'] && self::validate_key($result['key'])) {
-            self::set_registered($result['key']);
+            self::set_registered();
             unset_config('lastregistrationattempt', 'format_tiles');
             return true;
         } else {

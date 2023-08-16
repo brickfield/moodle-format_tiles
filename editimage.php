@@ -37,7 +37,7 @@ require_login($courseid);
 require_capability('moodle/course:update', $coursecontext);
 
 if (!get_config('format_tiles', 'allowphototiles')) {
-        print_error('disabledbyadmin', 'format_tiles');
+    throw new moodle_exception('disabledbyadmin', 'format_tiles');
 }
 
 $url = new moodle_url('/course/format/tiles/editimage.php', array(
@@ -155,7 +155,7 @@ if ($mform->is_cancelled()) {
                     \core\notification::success(
                         get_string('imagesavedfor', 'format_tiles', "'" . $sectionname . "'")
                     );
-                };
+                }
                 $tempfile->delete();
             } catch (Exception $e) {
                 debugging('Cannot set file', DEBUG_DEVELOPER);

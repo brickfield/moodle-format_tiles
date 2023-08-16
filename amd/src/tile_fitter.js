@@ -17,9 +17,7 @@
  * Javascript Module to handle fitting tiles to screen.
  * Called when in non editing mode.
  *
- * @module tile_fitter
- * @package course/format
- * @subpackage tiles
+ * @module format_tiles/tile_fitter
  * @copyright 2019 David Watson {@link http://evolutioncode.uk}
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since Moodle 3.3
@@ -343,8 +341,8 @@ define(["jquery", "core/ajax"], function ($, ajax) {
      * This is to cover the initial setting up of div width (i.e. allow us time to get screen width and set up).
      */
     var unHideTiles = function() {
-        $(Selector.TILES).animate({opacity: 1}, "fast");
-        $(Selector.SECTION_ZERO).animate({opacity: 1}, "fast");
+        $(Selector.TILES).animate({opacity: "1"}, "fast");
+        $(Selector.SECTION_ZERO).animate({opacity: "1"}, "fast");
         $("#page-loading-icon").fadeOut(500).remove();
     };
 
@@ -354,7 +352,7 @@ define(["jquery", "core/ajax"], function ($, ajax) {
             $(document).ready(function() {
                 setListeners();
                 if ($(Selector.TILES).css("opacity") === "1") {
-                    organiser.runReOrg().done(function() {
+                    organiser.runReOrg(false).done(function() {
                         if (sectionOpen !== 0) {
                             // Tiles are already visible so open the tile user was on previously (if any).
                             $(Selector.TILEID + sectionOpen).click();
@@ -366,7 +364,7 @@ define(["jquery", "core/ajax"], function ($, ajax) {
                 // Put them in the correct rows according to which row of tiles they relate to.
                 // Only then do we re-open the last section the user had open.
                 var organiseAndRevealTiles = function () {
-                    organiser.runReOrg().done(function() {
+                    organiser.runReOrg(false).done(function() {
                         if (sectionOpen !== 0 && $(Selector.OPEN_SECTION).length === 0) {
                             // Now open the tile user was on previously (if any).
                             $(Selector.TILEID + sectionOpen).click();

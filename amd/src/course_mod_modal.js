@@ -21,9 +21,7 @@
  * When the user clicks a PDF course module subtile or old style resource
  * if we are using modals for it (e.g. PDF) , create, populate, launch and size the modal
  *
- * @module      course_mod_modal
- * @package     course/format
- * @subpackage  tiles
+ * @module      format_tiles/course_mod_modal
  * @copyright   2018 David Watson {@link http://evolutioncode.uk}
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since       Moodle 3.3
@@ -40,18 +38,19 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
          */
         var modalStore = {};
         var loadingIconHtml;
-        var win = $(window);
+        const win = $(window);
         var courseId;
 
-        var Selector = {
-            toggleCompletion: ".togglecompletion",
+        const Selector = {
+            completioncheckbox: ".completioncheckbox",
+            completionAuto: ".completion-auto",
             modal: ".modal",
             modalDialog: ".modal-dialog",
             modalBody: ".modal-body",
             sectionMain: ".section.main",
             pageContent: "#page-content",
             regionMain: "#region-main",
-            completionState: "#completionstate_",
+            completionState: "#completion-check-",
             cmModalClose: ".embed_cm_modal .close",
             cmModal: ".embed_cm_modal",
             moodleMediaPlayer: ".mediaplugin_videojs",
@@ -61,17 +60,33 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
             URLACTIVITYPOPUPLINK: ".activity.modtype_url.urlpopup a",
             newWindowButton: ".button_expand",
             modalHeader: ".modal-header",
-            embedModuleButtons: ".embed-module-buttons"
+            embedModuleButtons: ".embed-module-buttons",
+            iframe: "iframe"
         };
 
-        var LaunchModalDataActions = {
+        const CLASS = {
+            COMPLETION_ENABLED: "completion-enabled",
+            COMPLETION_MANUAL: "completion-manual",
+            COMPLETION_AUTO: "completion-auto", // E.g. grade based.
+            COMPLETION_VIEW: "completion-view",
+            COMPLETION_CHECK_BOX: "completioncheckbox"
+        };
+
+        const LaunchModalDataActions = {
             launchResourceModal: "launch-tiles-resource-modal",
             launchModuleModal: "launch-tiles-module-modal",
             launchUrlModal: "launch-tiles-url-modal"
         };
 
+        const COMPLETION_TOGGLE_TYPES = {
+            MANUAL_NOT_DONE: "manual:mark-done",
+            MANUAL_DONE: "manual:undo"
+        };
+
+        const TOGGLE_MANUAL_COMPLETION = 'toggle-manual-completion';
+
         var modalMinWidth = function () {
-            return Math.min(win.width(), 1000);
+            return Math.min(win.width(), 1100);
         };
 
         /**
@@ -79,10 +94,10 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
          * @param {object} modal the modal which contains the video.
          */
         var stopAllVideosOnDismiss = function(modal) {
-            var iframes = modal.find("iframe");
+            var iframes = modal.find(Selector.iframe);
             if (iframes.length > 0) {
                 modal.find(Selector.closeBtn).click(function(e) {
-                    $(e.currentTarget).closest(Selector.cmModal).find("iframe").each(function (index, iframe) {
+                    $(e.currentTarget).closest(Selector.cmModal).find(Selector.iframe).each(function (index, iframe) {
                         iframe = $(iframe);
                         iframe.attr('src', iframe.attr("src"));
                     });
@@ -129,8 +144,9 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                 var modalRoot = $(modal.root);
                 modalRoot.attr("id", "embed_mod_modal_" + cmid);
                 modalRoot.attr("data-cmid", cmid);
+                modalRoot.attr("data-section", clickedCmObject.closest(Selector.sectionMain).attr("data-section"));
                 modalRoot.addClass("embed_cm_modal");
-
+                const sectionNum = clickedCmObject.closest(Selector.sectionMain).attr("data-section");
                 // Render the modal body and set it to the page.
                 // First a blank template data object.
                 var templateData = {
@@ -140,21 +156,19 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                     width: "100%",
                     height: Math.round(win.height() - 60), // Embedded object height in modal - make as high as poss.
                     cmid: cmid,
-                    tileid: clickedCmObject.closest(Selector.sectionMain).attr("data-section"),
+                    tileid: sectionNum,
                     isediting: 0,
                     sesskey: config.sesskey,
-                    modtitle: clickedCmObject.attr("data-title"),
+                    activityname: clickedCmObject.attr("data-title"),
                     config: {wwwroot: config.wwwroot},
                     showDownload: 0,
                     showNewWindow: 0,
-                    completionInUseForCm: 0
+                    hascompletion: 0,
+                    completionstring: ''
                 };
-
                 // If it's a PDF in this modal, change from the defaults assigned above.
                 if (clickedCmObject.attr('data-modtype') === "resource_pdf") {
                     templateData.objectType = 'application/pdf';
-                    templateData.showDownload = 1;
-                    templateData.showNewWindow = 1;
                 }
 
                 Templates.render("format_tiles/embed_file_modal_body", templateData).done(function (html) {
@@ -176,21 +190,7 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
 
                 }).fail(Notification.exception);
                 // Render the modal header / title and set it to the page.
-                if (clickedCmObject.find(Selector.toggleCompletion).length !== 0) {
-                    var inverseCompletionState = parseInt(
-                        $(Selector.completionState + cmid).attr("value")
-                    );
-                    templateData.completionInUseForCm = 1;
-                    templateData.completionstate = 1 - inverseCompletionState;
-                    templateData.completionicon = inverseCompletionState === 1 ? 'n' : 'y';
-                    templateData.completionstateInverse = inverseCompletionState;
-                    templateData.completionIsManual = clickedCmObject
-                        .find(Selector.toggleCompletion).attr("data-ismanual");
-                }
-                Templates.render("format_tiles/embed_module_modal_header_btns", templateData).done(function (html) {
-                    modalRoot.find(Selector.modalHeader).append(html);
-                    modalRoot.find(Selector.closeBtn).detach().appendTo(modalRoot.find(Selector.embedModuleButtons));
-                }).fail(Notification.exception);
+                renderModalHeader(clickedCmObject, modalRoot, templateData.pluginfileUrl, true, true);
 
                 return true;
             });
@@ -217,6 +217,7 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                 var modalRoot = $(modal.root);
                 modalRoot.attr("id", "embed_mod_modal_" + cmid);
                 modalRoot.attr("data-cmid", cmid);
+                modalRoot.attr("data-section", clickedCmObject.closest(Selector.sectionMain).attr("data-section"));
                 modalRoot.addClass("embed_cm_modal");
 
                 // Render the modal body and set it to the page.
@@ -224,6 +225,7 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
 
                 var modalWidth = Math.round(win.width() * 0.9);
                 var modalHeight = Math.round(win.height() * 0.9);
+                const sectionNum = clickedCmObject.closest(Selector.sectionMain).attr("data-section");
                 var templateData = {
                     id: cmid,
                     pluginfileUrl: clickedCmObject.attr("data-url"),
@@ -231,14 +233,11 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                     width: modalWidth - 30,
                     height: modalHeight - 30,
                     cmid: cmid,
-                    tileid: clickedCmObject.closest(Selector.sectionMain).attr("data-section"),
+                    tileid: sectionNum,
                     isediting: 0,
                     sesskey: config.sesskey,
-                    modtitle: clickedCmObject.attr("data-title"),
+                    activityname: clickedCmObject.attr("data-title"),
                     config: {wwwroot: config.wwwroot},
-                    showDownload: 0,
-                    showNewWindow: 1,
-                    completionInUseForCm: 0,
                     secondaryurl: clickedCmObject.closest(Selector.ACTIVITY).attr("data-url-secondary")
                 };
 
@@ -252,26 +251,13 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                     modalRoot.find(Selector.modalBody).addClass("text-center");
                 }).fail(Notification.exception);
                 // Render the modal header / title and set it to the page.
-                if (clickedCmObject.find(Selector.toggleCompletion).length !== 0) {
-                    var inverseCompletionState = parseInt(
-                        $(Selector.completionState + cmid).attr("value")
-                    );
-                    templateData.completionInUseForCm = 1;
-                    templateData.completionstate = 1 - inverseCompletionState;
-                    templateData.completionicon = inverseCompletionState === 1 ? 'n' : 'y';
-                    templateData.completionstateInverse = inverseCompletionState;
-                    templateData.completionIsManual = clickedCmObject
-                        .find(Selector.toggleCompletion).attr("data-ismanual");
-                }
-                Templates.render("format_tiles/embed_module_modal_header_btns", templateData).done(function (html) {
-                    modalRoot.find(Selector.modalHeader).append(html);
-                    modalRoot.find(Selector.closeBtn).detach().appendTo(modalRoot.find(Selector.embedModuleButtons));
-                }).fail(Notification.exception);
+                renderModalHeader(clickedCmObject, modalRoot, templateData.pluginfileUrl, false, true);
 
                 // Listen to see if user clicks to view the modal contents in a new window.  Dismiss modal if so.
                 // Important for video which may end up playing twice otherwise.
                 setTimeout(function() {
                     modalRoot.find(Selector.newWindowButton).click(function() {
+                        modalStore[modalRoot.attr("data-cmid")].hide();
                         modalStore[modalRoot.attr("data-cmid")] = undefined;
                         modalRoot.remove();
                         $(".modal-backdrop").not("#window-overlay").removeClass("show").addClass("hide");
@@ -283,6 +269,10 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
             return false;
         };
 
+        /**
+         * Resize the modal to account for its content.
+         * @param {object} modalRoot
+         */
         var resizeModal = function(modalRoot) {
             modalRoot.find(Selector.modal).animate({"max-width": modalMinWidth()}, "fast");
 
@@ -298,9 +288,9 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                 stopAllVideosOnDismiss(modalRoot);
             }
 
-            // If the activity contains an iframe (e.g. is a page with a YouTube video in it), ensure modal is big enough.
+            // If the activity contains an iframe (e.g. is a page with a YouTube video in it, or H5P), ensure modal is big enough.
             // Do this for every iframe in the course module.
-            modalRoot.find("iframe").each(function (index, iframe) {
+            modalRoot.find(Selector.iframe).each(function (index, iframe) {
 
                 // Get the modal.
                 var modal;
@@ -329,10 +319,105 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                 var iframeHeight = Math.min($(iframe).height(), win.height());
                 var modalBody = modalRoot.find(Selector.modalBody);
                 if (iframeHeight > modalBody.height() - MODAL_MARGIN) {
-                    modalBody.animate({"min-height": Math.min(iframeHeight + MODAL_MARGIN, win.height())}, "fast");
+                    modalBody.animate({"min-height": Math.min(iframeHeight + MODAL_MARGIN, win.height()) + 1}, "fast");
                 }
                 stopAllVideosOnDismiss(modalRoot);
             });
+        };
+
+        /**
+         * Check the modal height to see if the iframe in it is bigger.  If it is, adjust modal height up.
+         * Do this a few times so that, if iframe content is loading, we can check after it's loaded.
+         * @param {object} modalRoot
+         * @param {number} howManyChecks
+         * @param {number}duration
+         * @param {number} oldHeight
+         */
+        const modalHeightChangeWatcher = function (modalRoot, howManyChecks, duration, oldHeight = 0) {
+            const iframe = modalRoot.find(Selector.modalBody);
+            if (iframe) {
+                const newHeight = Math.round(iframe.height());
+                if (newHeight && newHeight > oldHeight + 10) {
+                    resizeModal(modalRoot);
+                }
+                if (howManyChecks > 0) {
+                    setTimeout(() => {
+                        modalHeightChangeWatcher(modalRoot, howManyChecks - 1, duration, newHeight);
+                    }, duration);
+                }
+            }
+        };
+
+        /**
+         * Handle rendering the items to go into course module modal header.
+         * @param {object} clickedCmObject
+         * @param {object} modalRoot
+         * @param {string} pluginfileUrl
+         * @param {boolean} showDownload
+         * @param {boolean} showNewWindow
+         */
+        const renderModalHeader = function(clickedCmObject, modalRoot, pluginfileUrl, showDownload, showNewWindow) {
+            const sectionNum = clickedCmObject.closest(Selector.sectionMain).attr("data-section");
+            const cmid = clickedCmObject.attr("data-cmid");
+            var templateData = {
+                cmid: cmid,
+                activityname: clickedCmObject.attr("data-title"),
+                tileid: sectionNum
+            };
+            if (clickedCmObject.hasClass(CLASS.COMPLETION_ENABLED)) {
+                templateData.istrackeduser = 1;
+                templateData.hascompletion = 1;
+                const oldState = clickedCmObject.attr('data-completion-state') === "1";
+                templateData.overallcomplete = oldState ? 1 : 0;
+                templateData.overallincomplete = oldState ? 0 : 1;
+                templateData.completionIsManual = clickedCmObject.hasClass(CLASS.COMPLETION_MANUAL);
+                if (templateData.completionIsManual) {
+                    clickedCmObject.attr(
+                        TOGGLE_MANUAL_COMPLETION,
+                        templateData.overallcomplete
+                            ? COMPLETION_TOGGLE_TYPES.MANUAL_DONE : COMPLETION_TOGGLE_TYPES.MANUAL_NOT_DONE
+                    );
+                } else {
+                    // Auto completion has different vars for core template core_course/completion_automatic.
+                    templateData.statuscomplete = templateData.overallcomplete;
+                    templateData.statusincomplete = templateData.overallincomplete;
+                }
+                templateData.showDownload = showDownload !== undefined ? showDownload : 0;
+                templateData.showNewWindow = showNewWindow !== undefined ? showNewWindow : 0;
+                templateData.pluginfileUrl = pluginfileUrl;
+                templateData.forModal = true;
+                // Trigger event to check if other items in course have updated availability.
+                if (oldState !== templateData.completionstate) {
+                    require(["format_tiles/completion"], function (completion) {
+                        completion.triggerCompletionChangedEvent(parseInt(sectionNum), parseInt(clickedCmObject.attr("data-cmid")));
+                    });
+                }
+            }
+            Templates.render("format_tiles/embed_module_modal_header_btns", templateData).done(function (html) {
+                modalRoot.find(Selector.embedModuleButtons).remove();
+                modalRoot.find($('button.close')).remove();
+                modalRoot.find(Selector.modalHeader).append(html);
+                modalRoot.find(Selector.closeBtn).detach().appendTo(modalRoot.find(Selector.embedModuleButtons));
+                const toggleCompletionSelector = '[data-action="' + TOGGLE_MANUAL_COMPLETION + '"]';
+                modalRoot.find(toggleCompletionSelector).on('click', () => {
+                    require(["format_tiles/completion"], function (completion) {
+                        // In this case, core will handle the request to set the new completion value in the DB.
+                        // We wait a moment to allow that to get a head start.
+                        // Then we trigger an event which course.js will see and update the section content to show new statuses.
+                        // Use will not notice this as they are looking at the modal, but it's ready when they dismiss modal.
+                        setTimeout(() => {
+                            completion.triggerCompletionChangedEvent(
+                                parseInt(modalRoot.attr('data-section')), parseInt(modalRoot.attr("data-cmid"))
+                            );
+                        }, 300);
+                    });
+                });
+            }).fail(Notification.exception);
+
+            // Allow a short delay before we resize the modal, and check a few times, as content may be loading.
+            setTimeout(() => {
+                modalHeightChangeWatcher(modalRoot, 3, 1000);
+            }, 500);
         };
 
         // TODO refactor these to avoid repetition.
@@ -356,6 +441,7 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                 modal.show();
                 var modalRoot = $(modal.root);
                 modalRoot.attr("data-cmid", cmid);
+                modalRoot.attr("data-section", clickedCmObject.closest(Selector.sectionMain).attr("data-section"));
                 modalRoot.attr("id", "embed_mod_modal_" + cmid);
                 modalRoot.addClass("embed_cm_modal");
                 modalRoot.addClass('mod_' + clickedCmObject.attr("data-modtype"));
@@ -367,31 +453,8 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                         cmid: cmid
                     }
                 }])[0].done(function(response) {
-                    var templateData = {
-                        cmid: cmid,
-                        modtitle: clickedCmObject.attr("data-title"),
-                        content: response.html
-                    };
-                    if (clickedCmObject.find(Selector.toggleCompletion).length !== 0) {
-                        var inverseCompletionState = parseInt(
-                            $(Selector.completionState + cmid).attr("value")
-                        );
-                        templateData.completionInUseForCm = 1;
-                        templateData.completionstate = 1 - inverseCompletionState;
-                        templateData.completionstateInverse = inverseCompletionState;
-                        templateData.completionIsManual = clickedCmObject
-                            .find(Selector.toggleCompletion).attr("data-ismanual");
-                        templateData.completionicon = inverseCompletionState === 1 ? 'n' : 'y';
-                    } else {
-                        templateData.completionInUseForCm = 0;
-                    }
-                    modal.setBody(templateData.content);
-                    Templates.render("format_tiles/embed_module_modal_header_btns", templateData).done(function (html) {
-                        modalRoot.find(Selector.modalHeader).append(html);
-                        modalRoot.find(Selector.closeBtn).detach().appendTo(modalRoot.find(Selector.embedModuleButtons));
-                    }).fail(Notification.exception);
-
-                    resizeModal(modalRoot);
+                    renderModalHeader(clickedCmObject, modalRoot, '', false, false);
+                    modal.setBody(response.html);
 
                     return true;
                 }).fail(function(ex) {
@@ -423,34 +486,16 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                     }
                 }])[0].done(function () {
                     // Because we intercepted the normal event for the click, process auto completion.
+                    const sectionNum = clickedActivity.closest(Selector.section).attr('data-section');
+                    const cmid = clickedActivity.attr('data-cmid');
                     require(["format_tiles/completion"], function (completion) {
-                        completion.markAsAutoCompleteInUI(courseId, clickedActivity);
+                        completion.triggerCompletionChangedEvent(
+                            sectionNum ? parseInt(sectionNum) : 0,
+                            cmid ? parseInt(cmid) : 0
+                        );
                     });
                     // Then open the pop up.
-                    var newWin = window.open(clickedActivity.attr("data-url"));
-                    try {
-                        newWin.focus();
-                    } catch (e) {
-                        // Blocked pop-up?
-                        var popUpLink = '<div>'
-                            + '<a href="' + clickedActivity.attr("data-url") + '">'
-                            + clickedActivity.attr("data-url")
-                            + '</a></div>';
-                        require(['core/str', 'core/notification'], function(Str, Notification) {
-                            var stringKeys = [
-                                {key: "sectionerrortitle", component: "format_tiles"},
-                                {key: "blockedpopup", component: "format_tiles"},
-                                {key: "cancel"}
-                            ];
-                            Str.get_strings(stringKeys).done(function (s) {
-                                Notification.alert(
-                                   s[0],
-                                    s[1] + popUpLink,
-                                    s[2]
-                                );
-                            });
-                        });
-                    }
+                    window.open(clickedActivity.attr("data-url"));
                 }).fail(Notification.exception);
             }
         };
@@ -469,17 +514,39 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                         pageContent = $(Selector.regionMain);
                     }
                     pageContent.on("click", modalSelectors, function (e) {
+                        // If click is on a completion checkbox within activity, ignore here as handled elsewhere.
+                        const tgt = $(e.target);
+                        if (tgt.hasClass(CLASS.COMPLETION_CHECK_BOX) || tgt.parent().hasClass(CLASS.COMPLETION_CHECK_BOX)) {
+                            return;
+                        }
                         e.preventDefault();
-                        var tgt = $(e.currentTarget);
-                        var clickedCmObject = tgt.closest("li.activity");
-
+                        const currTgt = $(e.currentTarget);
+                        var clickedCmObject = currTgt.closest("li.activity");
+                        if (clickedCmObject.hasClass('completeonview')) {
+                            const sectionNum = clickedCmObject.closest(Selector.sectionMain).attr('data-section');
+                            const cmid = clickedCmObject.attr('data-cmid');
+                            require(["format_tiles/completion"], function (completion) {
+                                completion.triggerCompletionChangedEvent(
+                                    sectionNum ? parseInt(sectionNum) : 0,
+                                    cmid ? parseInt(cmid) : 0
+                                );
+                            });
+                        }
                         // If we already have this modal on the page, launch it.
                         var existingModal = modalStore[clickedCmObject.attr("data-cmid")];
                         if (typeof existingModal === "object") {
                             existingModal.show();
                         } else {
+                            // Log the fact we viewed it (only do this once not every time the modal launches).
+                            ajax.call([{
+                                methodname: "format_tiles_log_mod_view", args: {
+                                    courseid: courseId,
+                                    cmid: clickedCmObject.attr("data-cmid")
+                                }
+                            }])[0].fail(Notification.exception);
+
                             // We don't already have it, so make it.
-                            switch (tgt.attr("data-action")) {
+                            switch (currTgt.attr("data-action")) {
                                 case LaunchModalDataActions.launchModuleModal:
                                     launchCourseActivityModal(clickedCmObject);
                                     break;
@@ -490,15 +557,19 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                                     launchEmbeddedUrlModal(clickedCmObject);
                                     break;
                                 default:
-                                    throw new Error("Unknown modal type " + tgt.attr("data-action"));
+                                    throw new Error("Unknown modal type " + currTgt.attr("data-action"));
                             }
-                            // Log the fact we viewed it (only do this once not every time the modal launches).
-                            ajax.call([{
-                                methodname: "format_tiles_log_mod_view", args: {
-                                    courseid: courseId,
-                                    cmid: clickedCmObject.attr("data-cmid")
-                                }
-                                }])[0].fail(Notification.exception);
+                        }
+                        // If we have an auto completion toggle on this item, trigger event.
+                        if (clickedCmObject.find(Selector.completionAuto).length !== 0) {
+                            const sectionNum = clickedCmObject.closest(Selector.sectionMain).attr('data-section');
+                            const cmid = clickedCmObject.attr('data-cmid');
+                            require(["format_tiles/completion"], function (completion) {
+                                completion.triggerCompletionChangedEvent(
+                                    sectionNum ? parseInt(sectionNum) : 0,
+                                    cmid ? parseInt(cmid) : 0
+                                );
+                            });
                         }
                     });
 
@@ -515,6 +586,13 @@ define(["jquery", "core/modal_factory", "core/config", "core/templates", "core/n
                             launchUrlPopUp(e);
                         });
                     }
+
+                    // If completion of a cm changes, remove it from store so that it can be re-rendered with correct heading.
+                    $(document).on('format-tiles-completion-changed', function(e, data) {
+                        if (data.cmid && modalStore[data.cmid]) {
+                            modalStore[data.cmid] = undefined;
+                        }
+                    });
                 });
             }
         };

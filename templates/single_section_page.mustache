@@ -40,20 +40,20 @@
     Context variables required for this template:
         * from_ajax
         * section_zero
-        * isediting
+        * editing
 
     Example context (json):
        {
            "from_ajax": 0,
            "section_zero": [],
-           "isediting": 0,
+           "editing": 0,
            "above_tiles": "",
            "single_section": {
                 "tileid": 1,
                 "title": "Section 1",
                 "hidden_section": 0,
                 "from_ajax": 0,
-                "isediting": 0,
+                "editing": 0,
                 "secid": 101,
                 "canedit": 1,
                 "tileicon": "user",
@@ -76,9 +76,7 @@
     {{/from_ajax}}
     <ul id="single_section_tiles">
         {{^from_ajax}}
-            {{#section_zero}}
-                {{> format_tiles/section_zero}}
-            {{/section_zero}}
+            {{> format_tiles/section_zero}}
         {{/from_ajax}}
         {{! single_section is a separate template as it is also called directly from JS without this other stuff}}
         {{>format_tiles/single_section}}
@@ -87,7 +85,7 @@
 </div>
 
 {{^from_ajax}}
-    {{#isediting}}
+    {{#editing}}
         {{{course_activity_clipboard}}}
-    {{/isediting}}
+    {{/editing}}
 {{/from_ajax}}

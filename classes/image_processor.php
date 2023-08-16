@@ -35,8 +35,7 @@ require_once($CFG->libdir . '/gdlib.php');
  * @copyright 2018 David Watson {@link http://evolutioncode.uk} in respect of modifications to format_grid versions by G J Barnard.
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class image_processor
-{
+class image_processor {
 
     /**
      * When the user uploads a new file, it is saved as tempfile which may be large.
@@ -91,7 +90,7 @@ class image_processor
             } else {
                 debugging('imagecannotbeused', 'format_tiles', DEBUG_DEVELOPER);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if (isset($tempfile)) {
                 unset($tempfile);
             }
@@ -118,7 +117,7 @@ class image_processor
      */
     private static function process_image($filepath, $requestedwidth, $requestedheight, $mime) {
         $imagecontainerbgcolour = array('r' => 255, 'g' => 255, 'b' => 255);
-        if (empty($filepath) or empty($requestedwidth) or empty($requestedheight)) {
+        if (empty($filepath) || empty($requestedwidth) || empty($requestedheight)) {
             return false;
         }
 
@@ -131,7 +130,7 @@ class image_processor
         $originalwidth = $imageinfo[0];
         $originalheight = $imageinfo[1];
 
-        if (empty($originalwidth) or empty($originalheight)) {
+        if (empty($originalwidth) || empty($originalheight)) {
             return false;
         }
 
@@ -151,7 +150,7 @@ class image_processor
                     127
                 ));
                 imagesavealpha($tempimage, true);
-            } else if (array_search($imageparams['function'], array('imagejpeg', 'imagewebp', 'imagegif')) !== false) {
+            } else if (in_array($imageparams['function'], array('imagejpeg', 'imagewebp', 'imagegif'))) {
                 imagealphablending($tempimage, false);
                 imagefill(
                     $tempimage,
@@ -182,9 +181,36 @@ class image_processor
             $originalheight);
 
         ob_start();
-        if (!$imageparams['function']($finalimage, null, $imageparams['quality'], $imageparams['filters'])) {
-            ob_end_clean();
-            return false;
+        switch($imageparams['function']) {
+            case 'imagejpeg':
+                if (!imagejpeg($finalimage, null, $imageparams['quality'])) {
+                    ob_end_clean();
+                    return false;
+                }
+                break;
+            case 'imagepng':
+                if (!imagepng($finalimage, null, $imageparams['quality'], $imageparams['filters'])) {
+                    ob_end_clean();
+                    return false;
+                }
+                break;
+            case 'imagegif':
+                if (!imagegif($finalimage)) {
+                    ob_end_clean();
+                    return false;
+                }
+                break;
+            case 'imagewebp':
+                if (!imagewebp($finalimage, null, $imageparams['quality'])) {
+                    ob_end_clean();
+                    return false;
+                }
+                break;
+            default:
+                if (!$imageparams['function']($finalimage, null, $imageparams['quality'], $imageparams['filters'])) {
+                    ob_end_clean();
+                    return false;
+                }
         }
         $data = ob_get_clean();
 
@@ -234,8 +260,8 @@ class image_processor
                         'filters' => PNG_NO_FILTER,
                         'quality' => 1
                     );
-                    break;
                 }
+                break;
             case 'image/jpeg':
                 if (function_exists('imagejpeg')) {
                     return array(
@@ -243,8 +269,8 @@ class image_processor
                         'filters' => null,
                         'quality' => 90
                     );
-                    break;
                 }
+                break;
             case 'image/webp':
                 if (function_exists('imagewebp')) {
                     return array(
@@ -252,8 +278,8 @@ class image_processor
                         'filters' => null,
                         'quality' => 90
                     );
-                    break;
                 }
+                break;
             case 'image/gif':
                 if (function_exists('imagegif')) {
                     return array(
@@ -261,12 +287,13 @@ class image_processor
                         'filters' => null,
                         'quality' => null
                     );
-                    break;
                 }
+                break;
             default:
-                debugging('Mime type \''.$mime.'\' is not supported as an image format. PNG, JPEG and GIF are supported. '
-                    . 'The GD PHP extension should be installed.');
-                return false;
+                break;
         }
+        debugging('Mime type \''.$mime.'\' is not supported as an image format. PNG, JPEG and GIF are supported. '
+            . 'The GD PHP extension should be installed.');
+        return false;
     }
 }

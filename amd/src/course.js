@@ -22,8 +22,6 @@
  * covered by the specific modules
  *
  * @module      format_tiles/course
- * @package     course/format
- * @subpackage  tiles
  * @copyright   2018 David Watson {@link http://evolutioncode.uk}
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -33,18 +31,13 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
     function ($, Templates, ajax, browserStorage, Notification, str, tileFitter) {
         "use strict";
 
-        var body = $("body");
-        var bodyHtml = $("body, html");
         var isMobile;
         var loadingIconHtml;
         var stringStore = [];
-        var windowOverlay;
-        var headerOverlay;
         var scrollFuncLock = false;
         var sectionIsOpen = false;
         var HEADER_BAR_HEIGHT = 60; // This varies by theme and version so will be reset once pages loads below.
         var reopenLastVisitedSection = false;
-        var backDropZIndex = 0;
         var courseId;
         var resizeLocked = false;
         var enableCompletion;
@@ -53,6 +46,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
         var openTile = 0;
 
         var Selector = {
+            BODY: "body",
             PAGE: "#page",
             TILE: ".tile",
             TILEID: "#tile-",
@@ -64,30 +58,30 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             TILE_CLICKABLE: ".tile-clickable",
             TILES: "ul.tiles",
             ACTIVITY: ".activity",
+            ACTIVITY_NAME: ".activityname",
+            INSTANCE_NAME: ".instancename",
             SPACER: ".spacer",
             SECTION_MOVEABLE: ".moveablesection",
             SECTION_ID: "#section-",
             SECTION_TITLE: ".sectiontitle",
             SECTION_MAIN: ".section.main",
-            SECTION_BUTTONS: "#sectionbuttons",
+            SECTION_BUTTONS: ".sectionbuttons",
             CLOSE_SEC_BTN: ".closesectionbtn",
             HIDE_SEC0_BTN: "#buttonhidesec0",
             SECTION_ZERO: "#section-0",
             MOODLE_VIDEO: ".mediaplugin.mediaplugin_videojs",
             LAUNCH_STANDARD: '[data-action="launch-tiles-standard"]',
+            MANUAL_COMPLETION: '[data-action="toggle-manual-completion"]',
             TOOLTIP: "[data-toggle=tooltip]",
-            HEADER_BAR: ["header.navbar", "nav.fixed-top.navbar", "#essentialnavbar.moodle-has-zindex", "#navwrap",
-                "nav.navbar-fixed-top", "#main-navbar"]
-            // We try several different selectors for header bar as it varies between theme.
-            // (Boost based, clean based, essential etc).
+            MATHJAX_EQUATION: ".filter_mathjaxloader_equation"
         };
         var ClassNames = {
             SELECTED: "selected",
-            HEADER_OVERLAY: "header-overlay",
             OPEN: "open",
             CLOSED: "closed",
             LAUNCH_CM_MODAL: "launch-tiles-cm-modal",
-            STATE_VISIBLE: 'state-visible' // This is a Snap theme class and was added to make this format cooperate better with it.
+            STATE_VISIBLE: 'state-visible', // This is a Snap theme class. Was added to make this format cooperate better with it.
+            HAS_OPEN_TILE: 'format-tiles-tile-open'
         };
 
         var Event = {
@@ -108,23 +102,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             RETURN: 13
         };
 
-        /**
-         * Because headeroverlay may not exist, we want to avoid trying to fade if not there.
-         * @param {boolean} fadeIn whether to fade in (fade out otherwise).
-         * @returns {boolean}
-         */
-        var headerOverlayFadeInOut = function(fadeIn) {
-            if (headerOverlay === undefined) {
-                return false;
-            } else {
-                if (fadeIn === true) {
-                    headerOverlay.fadeIn(300);
-                } else {
-                    headerOverlay.fadeOut(300);
-                }
-                return true;
-            }
-        };
+        const OVERLAY_ID = 'format_tiles_overlay';
 
         /**
          * If we have embedded video in section, stop it.
@@ -152,8 +130,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
         };
 
         /**
-         * When JS navigation is being used, when a user un-selects a tile, we have to move the tile's z-index back so that it is
-         * no longer on top of the overlay, as well as removing its "selected" class, and hiding the overlay
+         * When JS navigation is being used, when a user un-selects a tile, we have to un-fade other tiles
          * @param {number} sectionToFocus if we want to focus a tile after closing, which one
          */
         var cancelTileSelections = function (sectionToFocus) {
@@ -166,8 +143,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             });
             $(Selector.TILE).removeClass(ClassNames.SELECTED).css(CSS.Z_INDEX, "").css(CSS.BG_COLOUR, "");
             $(".section " + ClassNames.SELECTED).removeClass(ClassNames.SELECTED).css(CSS.Z_INDEX, "");
-            windowOverlay.fadeOut(300);
-            headerOverlayFadeInOut(false);
+
             if (sectionToFocus !== undefined && sectionToFocus !== 0) {
                 $(Selector.TILEID + sectionToFocus).focus();
             }
@@ -176,15 +152,46 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             });
             sectionIsOpen = false;
             openTile = 0;
+            $(Selector.BODY).removeClass(ClassNames.HAS_OPEN_TILE);
+            overlay.fadeOut(300);
+        };
+
+        const overlay = $('#' + OVERLAY_ID);
+
+        /**
+         * Used where the user clicks the window overlay but we want the active click to be behind the
+         * overlay e.g. the tile or custom menu item behind it.  So we get the co-ordinates of the click
+         * on the overlay and then repeat the click at that spot ignoring the overlay
+         * @param {object} e the click event object
+         */
+        var clickItemBehind = function (e) {
+            var clickedItem = $(e.currentTarget);
+            if (clickedItem.attr("id") === OVERLAY_ID) {
+                // We need to know what is behind the modal, so hide it for an instant to find out.
+                clickedItem.hide();
+                var BottomElement = $(document.elementFromPoint(e.clientX, e.clientY));
+                clickedItem.show();
+                if (BottomElement.hasClass("filterbutton") || BottomElement.hasClass("list-group-item")) {
+                    // Must ba a filter button clicked or a nav drawer item.
+                    BottomElement.click();
+                } else {
+                    // Must be a tile clicked.
+                    var clickedTile = BottomElement.closest(Selector.TILE);
+                    if (clickedTile) {
+                        clickedTile.click();
+                    }
+                }
+            }
         };
 
         /**
          * Set the HTML for a course section to the correct div in the page
          * @param {Object} contentArea the jquery object for the content area
          * @param {String} content the HTML
+         * @param {String} js Any additional JS for the new HTML.
          * @returns {boolean} success
          */
-        var setCourseContentHTML = function (contentArea, content) {
+        var setCourseContentHTML = function (contentArea, content, js) {
             if (content) {
                 contentArea.html(content);
                 $(Selector.TILE_LOADING_ICON).fadeOut(300, function () {
@@ -226,8 +233,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                                 setTimeout(function () {
                                     // Allow very short delay so we dont skip forward on the basis of our last key press.
                                     contentArea.find(Selector.SECTION_TITLE).focus();
-                                    bodyHtml.animate({scrollTop: contentArea.offset().top - HEADER_BAR_HEIGHT}, "slow");
-                                    contentArea.find('#sectionbuttons').css("top", "");
+                                    contentArea.find(Selector.SECTION_BUTTONS).css("top", "");
                                 }, 200);
                             }
                         });
@@ -250,8 +256,8 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                     setTimeout(function () {
                         // Manual forms, auto icons and "Restricted until ..." etc.
                         try {
-                            const tooltipItems = contentArea.find(".togglecompletion, .completioncheckbox, .tag-info");
-                            if (tooltipItems.length > 0) {
+                            const tooltipItems = contentArea.find(".badge-info");
+                            if (tooltipItems.length > 0 && typeof tooltipItems.tooltip == 'function') {
                                 tooltipItems.tooltip();
                             }
                         } catch (err) {
@@ -268,9 +274,50 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                     });
                 }
 
+                // Some modules e.g. mod_unilabel need JS initialising when added to the page.
+                if (js && js.length) {
+                    contentArea.append(js);
+                }
+
+                setTimeout(() => {
+                    // If subtile title is long, it overlaps background image.
+                    // Check heights to see if any subtile backgrounds need dimming.
+                    // Allow short delay for content to be added first.
+                    const MAX_HEIGHT = 110;
+                    contentArea.find(
+                        Selector.ACTIVITY_NAME).each((i, el) => {
+                        el = $(el);
+                        if (el.height() > MAX_HEIGHT) {
+                            el.closest(Selector.INSTANCE_NAME).addClass('opaque-bg');
+                        }
+                    });
+                }, 100);
+
+                applyMathJax(contentArea);
                 return true;
             }
             return false;
+        };
+
+        /**
+         * Find Mathjax equations in a content area and queue them for processing.
+         * @param {Object} contentArea the jquery object for the content area
+         */
+        const applyMathJax = function(contentArea) {
+            if (typeof window.MathJax !== "undefined") {
+                try {
+                    const mathJaxElems = contentArea.find(Selector.MATHJAX_EQUATION);
+                    if (mathJaxElems.length) {
+                        mathJaxElems.each((i, node) => {
+                            window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, node]);
+                        });
+                    }
+                } catch (err) {
+                    require(["core/log"], function(log) {
+                        log.debug(err);
+                    });
+                }
+            }
         };
 
         /**
@@ -279,10 +326,11 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
          * @param {number} tileId to expand
          */
         var expandSection = function (contentArea, tileId) {
+            const tile = $("#tile-" + tileId);
             var expandAndScroll = function () {
                 // Scroll to the top of content bearing section
                 // we have to wait until possible reOrg and slide down totally before calling this, else co-ords are wrong.
-                var scrollTo = $("#tileText-" + tileId).offset().top - HEADER_BAR_HEIGHT;
+                var scrollTo = (tile.offset().top) - $(Selector.TILES).offset().top + HEADER_BAR_HEIGHT;
                 if (scrollTo === $(window).scrollTop) {
                     // Scroll by at least one pixel otherwise z-index on selected tile is not changed.
                     // Until mouse moves.
@@ -290,15 +338,16 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                 }
                 contentArea.find(Selector.SECTION_TITLE).focus();
                 // If user tries to scroll during animation, stop animation.
-                var events = "scroll mousedown wheel DOMMouseScroll mousewheel keyup touchmove";
-                body.on(events, function () {
-                    body.stop();
+                var events = "mousedown wheel DOMMouseScroll mousewheel keyup touchmove";
+                const page = $(Selector.PAGE);
+                page.on(events, function () {
+                    page.stop();
                 });
 
-                bodyHtml.animate({scrollTop: scrollTo}, "slow", function () {
+                page.animate({scrollTop: scrollTo}, "slow", "swing", function () {
                     // Animation complete, remove stop handler.
-                    bodyHtml.off(events, function () {
-                        bodyHtml.stop();
+                    page.off(events, function () {
+                        page.stop();
                     });
                 });
                 sectionIsOpen = true;
@@ -322,11 +371,11 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                     if (enableCompletion) {
                         // Some iframes may load content set to mark as complete on view.
                         // So maybe need to update tile completion info. E.g. applies with H5P filter.
-                        require(["format_tiles/completion"], function (completion) {
-                            setTimeout(() => {
-                                completion.updateTileInformation();
-                            }, 1000);
-                        });
+                        setTimeout(() => {
+                            $(document).trigger('format-tiles-completion-changed', {
+                                section: tileId
+                            });
+                        }, 1000);
                     }
                 }
             };
@@ -347,28 +396,15 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                                     && desiredNewPositionInSection < contentArea.outerHeight() - 100) {
                                 desiredNewPositionInSection = (windowTop - contentArea.offset().top + 50);
                                 buttons.css("top", desiredNewPositionInSection);
-                                if (windowOverlay.css(CSS.DISPLAY) === "none") {
-                                    windowOverlay.fadeIn(300);
-                                }
                             } else if (desiredNewPositionInSection < 0) {
                                 buttons.css("top", 0);
                             }
                             if (windowTop > contentArea.offset().top + contentArea.outerHeight() - 50) {
                                 // We have scrolled down and content bottom has gone out of the top of window.
-                                if (windowOverlay.css(CSS.DISPLAY) === "block") {
-                                    windowOverlay.fadeOut(300);
-                                    headerOverlayFadeInOut(false);
-                                }
                                 buttons.css("top", 0);
                             } else if (contentArea.offset().top > windowTop + $(window).outerHeight()) {
                                 // We have scrolled up and  content bottom has gone out of the bottom of window.
-                                if (windowOverlay.css(CSS.DISPLAY) === "block") {
-                                    windowOverlay.fadeOut(300);
-                                    headerOverlayFadeInOut(false);
-                                }
                                 buttons.css("top", 0);
-                            } else if (windowOverlay.css(CSS.DISPLAY) === "none") {
-                                windowOverlay.fadeIn(300);
                             }
                             buttons.fadeIn(300, function () {
                                 // Release lock on this function.
@@ -377,12 +413,12 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                         }, 500);
                     }
                 });
-                if (!scrollFuncLock && !sectionIsOpen && windowOverlay.is(":visible")) {
-                    windowOverlay.fadeOut(300);
-                }
             };
 
             contentArea.addClass(ClassNames.STATE_VISIBLE);
+            overlay.fadeIn(300);
+            tile.addClass(ClassNames.SELECTED);
+            $(Selector.BODY).addClass(ClassNames.HAS_OPEN_TILE);
             contentArea.slideDown(350, function () {
                 // Wait until we have finished sliding down before we work out where the top is for scroll.
                 expandAndScroll();
@@ -406,7 +442,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             var openedSectionNum = 0;
             if (openedSection.length > 0) {
                 openedSectionNum = openedSection.attr("data-section");
-                cancelTileSelections();
+                cancelTileSelections(0);
             }
             var reOrgFunc = function(delayBefore) {
                 tileFitter.runReOrg(delayBefore)
@@ -455,7 +491,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             } else {
                 // It looks like we may not have a connection so we can't launch notifications.
                 // We can warn the user like this instead.
-                setCourseContentHTML(contentArea, "<p>" + stringStore.noconnectionerror + "</p>");
+                setCourseContentHTML(contentArea, "<p>" + stringStore.noconnectionerror + "</p>", '');
                 setTimeout(function () {
                     expandSection(contentArea, sectionNum);
                 }, 500);
@@ -481,79 +517,6 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                     setjsusedsession: true
                 }
             }])[0];
-        };
-
-        /**
-         * Temporary function to adjust shade of RGB colour
-         * (used for shading tiles to get around transparent background on overlay issue)
-         * @param {number} R
-         * @param {number} G
-         * @param {number} B
-         * @param {number} percent
-         * @returns {string}
-         */
-        var shadeRGBColor = function (R, G, B, percent) {
-            var t = percent < 0 ? 0 : 255;
-            var p = percent < 0 ? percent * -1 : percent;
-            var r = Math.round((t - R) * p) + R;
-            var g = Math.round((t - G) * p) + G;
-            var b = Math.round((t - B) * p) + B;
-            return "rgb(" + r + "," + g + "," + b + ")";
-        };
-
-        /**
-         * Add an opaque modal backdrop like div to obscure all other tiles and bring specified tile and content to front
-         * @param {number} secNumOnTop the section number which should be displayed on top of the overlay
-         */
-        var setOverlay = function (secNumOnTop) {
-            windowOverlay.fadeIn(300);
-            backDropZIndex = parseInt(windowOverlay.css(CSS.Z_INDEX));
-            var tile = $(Selector.TILEID + secNumOnTop);
-            tile.css(CSS.Z_INDEX, (backDropZIndex + 1));
-            headerOverlayFadeInOut(true);
-            $(Selector.SECTION_ID + secNumOnTop).css(CSS.Z_INDEX, (backDropZIndex + 1));
-            if (tile.css(CSS.BG_COLOUR) && tile.css(CSS.BG_COLOUR).substr(0, 4) === "rgba") {
-                // Tile may have transparent background from theme - needs to be solid otherwise modal shows through.
-                var existingColour = tile.css(CSS.BG_COLOUR).replace("rgba(", "").replace(")", "").replace(" ", "").split(",");
-                tile.css(CSS.BG_COLOUR, shadeRGBColor(
-                    parseInt(existingColour[0]),
-                    parseInt(existingColour[1]),
-                    parseInt(existingColour[2]),
-                    0.95
-                ));
-            }
-        };
-
-        /**
-         * Used where the user clicks the window overlay but we want the active click to be behind the
-         * overlay e.g. the tile or custom menu item behind it.  So we get the co-ordinates of the click
-         * on the overlay and then repeat the click at that spot ignoring the overlay
-         * @param {object} e the click event object
-         */
-        var clickItemBehind = function (e) {
-            var clickedItem = $(e.currentTarget);
-            if (clickedItem.attr("id") === "window-overlay" || clickedItem.attr("id") === ClassNames.HEADER_OVERLAY) {
-                // We need to know what is behind the modal, so hide it for an instant to find out.
-                clickedItem.hide();
-                var BottomElement = $(document.elementFromPoint(e.clientX, e.clientY));
-                clickedItem.show();
-                if (clickedItem.attr("id") === "window-overlay") {
-                    if (BottomElement.hasClass("filterbutton") || BottomElement.hasClass("list-group-item")) {
-                        // Must ba a filter button clicked or a nav drawer item.
-                        BottomElement.click();
-                    } else {
-                        // Must be a tile clicked.
-                        var clickedTile = BottomElement.closest(Selector.TILE);
-                        if (clickedTile) {
-                            clickedTile.click();
-                        }
-                    }
-                } else {
-                    // Must be a click on the header bar.
-                    cancelTileSelections(0);
-                    BottomElement.click();
-                }
-            }
         };
 
         /**
@@ -583,12 +546,9 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
          * @param {number} courseId courseId the id of this course.
          * @param {object} thisTile jquery the tile object clicked.
          * @param {number} dataSection the id number of the tile.
-         * @param {number} storedContentExpirySecs
          */
-        var populateAndExpandSection = function(courseId, thisTile, dataSection, storedContentExpirySecs) {
-            setOverlay(dataSection);
+        var populateAndExpandSection = function(courseId, thisTile, dataSection) {
             $(Selector.TILE).removeClass(ClassNames.SELECTED);
-            thisTile.addClass(ClassNames.SELECTED);
             openTile = dataSection;
             // Then close all open secs.
             // Timed to finish in 200 so that it completes well before the opening next.
@@ -611,60 +571,21 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             if (relatedContentArea.find(Selector.ACTIVITY).length > 0) {
                 // There is already some content on the screen so display immediately.
                 expandSection(relatedContentArea, dataSection);
-                // Then refresh the content in storage only but do not change on screen.
-                if (browserStorage.getStoredContentAge(courseId, dataSection) > storedContentExpirySecs
-                || !browserStorage.getStoredContentAge(courseId, dataSection)) {
-                    // If stored content is old, replace it.
-                    getSectionContentFromServer(courseId, dataSection).done(function (response) {
-                        if (browserStorage.storageEnabledSession()) {
-                            browserStorage.storeCourseContent(courseId, dataSection, $(response.html).html());
-                        }
-                    });
-                }
+
+                // Still contact the server in case content has changed (e.g. restrictions now satisfied).
+                getSectionContentFromServer(courseId, dataSection).done(function (response) {
+                    setCourseContentHTML(relatedContentArea, $(response.html).html(), response.js);
+                });
             } else {
                 relatedContentArea.html(loadingIconHtml);
-                if (browserStorage.storageEnabledLocal()) {
-                    var contentAge = browserStorage.getStoredContentAge(courseId, dataSection);
-                    if (contentAge) {
-                        // We have some stored content so display it even if it's expired.
-                        setCourseContentHTML(
-                            relatedContentArea,
-                            browserStorage.getCourseContent(courseId, dataSection)
-                        );
-                        expandSection(relatedContentArea, dataSection);
-                    }
-                    if (!contentAge || contentAge > storedContentExpirySecs) {
-                        // Content in local storage may not exist or have expired.
-                        // If so, get it again from server and display new content on receipt.
-                        var loadingIcon = $(Selector.TILE_LOADING_ICON_ID + dataSection);
-                        if (loadingIcon !== undefined) {
-                            loadingIcon.html(loadingIconHtml).fadeIn(200);
-                        } else {
-                            loadingIcon = $("<div>").html(loadingIconHtml);
-                            relatedContentArea.html(loadingIcon);
-                        }
-                        getSectionContentFromServer(courseId, dataSection).done(function (response) {
-                            var contentToDisplay = $(response.html).html();
-                            setCourseContentHTML(relatedContentArea, contentToDisplay);
-                            expandSection(relatedContentArea, dataSection);
-                            if (browserStorage.storageEnabledSession()) {
-                                browserStorage.storeCourseContent(courseId, dataSection, contentToDisplay);
-                            }
-                        }).fail(function (failResult) {
-                            failedLoadSectionNotify(dataSection, failResult, relatedContentArea);
-                            cancelTileSelections(dataSection);
-                        });
-                    }
-                } else {
-                    // Not using storage so get from server.
-                    getSectionContentFromServer(courseId, dataSection).done(function (response) {
-                        setCourseContentHTML(relatedContentArea, $(response.html).html());
-                        expandSection(relatedContentArea, dataSection);
-                    }).fail(function (failResult) {
-                        failedLoadSectionNotify(dataSection, failResult, relatedContentArea);
-                        cancelTileSelections(dataSection);
-                    });
-                }
+                // Get from server.
+                getSectionContentFromServer(courseId, dataSection).done(function (response) {
+                    setCourseContentHTML(relatedContentArea, $(response.html).html(), response.js);
+                    expandSection(relatedContentArea, dataSection);
+                }).fail(function (failResult) {
+                    failedLoadSectionNotify(dataSection, failResult, relatedContentArea);
+                    cancelTileSelections(dataSection);
+                });
             }
             browserStorage.setLastVisitedSection(dataSection);
         };
@@ -673,17 +594,13 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
             init: function (
                 courseIdInit,
                 useJavascriptNav, // Set by site admin see settings.php.
-                maxContentSectionsToStore, // Set by site admin see settings.php.
                 isMobileInit,
                 sectionNum,
-                storedContentExpirySecs, // Set by site admin see settings.php.
-                storedContentDeleteMins, // Set by site admin see settings.php.
                 useFilterButtons,
                 assumeDataStoreConsent, // Set by site admin see settings.php.
                 reopenLastSectionInit, // Set by site admin see settings.php.
                 userId,
                 fitTilesToWidth,
-                usingH5pFilter,
                 enableCompletionInit
             ) {
                 courseId = courseIdInit;
@@ -694,13 +611,10 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                 assumeDataStoreConsent = assumeDataStoreConsent === "1";
                 enableCompletion = enableCompletionInit === "1";
                  // We want to initialise the browser storage JS module for storing user settings.
-                 // And (depending on maxContentSectionsToStore) possibly also content in browser.
                 browserStorage.init(
                     courseId,
-                    maxContentSectionsToStore,
                     false,
                     sectionNum,
-                    storedContentDeleteMins,
                     assumeDataStoreConsent,
                     userId
                 );
@@ -734,17 +648,6 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                     if (useJavascriptNav) {
                         // User is not editing but is usingJS nav to view.
 
-                        // When a tile is clicked we add an overlay to grey out the rest of the tiles on the page, so prepare it.
-                        windowOverlay = $("<div></div>").addClass("modal-backdrop fade in").hide()
-                            .attr("id", "window-overlay").appendTo(body);
-
-                        // If user clicks the window overlay behind the visible tile content, deselect tile.
-                        // (They want to remove the overlay).
-                        windowOverlay.click(function (e) {
-                            cancelTileSelections(0);
-                            clickItemBehind(e);
-                        });
-
                          // On a tile click, decide what to do an do it.
                          // (Collapse if already expanded, or expand it and fill with content).
                         pageContent.on(Event.CLICK, Selector.TILE_CLICKABLE, function (e) {
@@ -753,8 +656,7 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                                 return;
                             }
                             e.preventDefault();
-                            $(window).off(Event.SCROLL); // Stop listening for scroll events on ay previously opened tiles.
-                            // if other tiles have loading icons, fade them out (on the tile not the content sec).
+                            // If other tiles have loading icons, fade them out (on the tile not the content sec).
                             $(Selector.TILE_LOADING_ICON).fadeOut(300, function () {
                                 $(Selector.TILE_LOADING_ICON).html();
                             });
@@ -764,40 +666,16 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                                 // This tile is already expanded so collapse it.
                                 cancelTileSelections(dataSection);
                                 browserStorage.setLastVisitedSection(0);
+                                overlay.fadeOut(300);
                             } else {
-                                populateAndExpandSection(
-                                    courseId, thisTile, dataSection, storedContentExpirySecs
-                                );
+                                populateAndExpandSection(courseId, thisTile, dataSection);
                             }
-                            // Silently set the *next* section's content to if it exists and if user is not on mobile.
-                            // short delay as more important to get current section content first (above).
-                            var nextSecIfExists = $(Selector.SECTION_ID + (dataSection + 1));
-                            if (!isMobile && !usingH5pFilter && nextSecIfExists.length && dataSection > 0) {
-                                setTimeout(function () {
-                                    var storedContentAge = browserStorage.getStoredContentAge(courseId, dataSection + 1);
-                                    if (storedContentAge) {
-                                        // We have some stored content so set this to screen (even if expired).
-                                        setCourseContentHTML(
-                                            nextSecIfExists,
-                                            browserStorage.getCourseContent(courseId, dataSection + 1)
-                                        );
-                                    }
-                                    if (!storedContentAge || storedContentAge > storedContentExpirySecs) {
-                                        // Stored content is too old or does not exist so get from server.
-                                        getSectionContentFromServer(courseId, dataSection + 1).done(function(response) {
-                                            setCourseContentHTML(
-                                                nextSecIfExists,
-                                                $(response.html).html()
-                                            );
-                                            if (browserStorage.storageEnabledSession()) {
-                                                browserStorage.storeCourseContent(
-                                                    courseId, dataSection + 1, $(response.html).html()
-                                                );
-                                            }
-                                        });
-                                    }
-                                }, 2000);
-                            }
+                        });
+
+                        overlay.on(Event.CLICK, function(e) {
+                            cancelTileSelections(0);
+                            browserStorage.setLastVisitedSection(0);
+                            clickItemBehind(e);
                         });
 
                         // When window is re-sized, content sections under the tiles may be in wrong place.
@@ -818,13 +696,14 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                                 // First assume that we are going to resize, but we have checks to make below.
                                 var resizeRequired = true;
 
-                                // If we have a Moodle media player div in the section in fullscreen, ignore this resize event.
+                                // If we have an iframe in the section in fullscreen, ignore this resize event.
                                 // It was probably caused when user pressed the full screen button.
+                                // This could be a Moodle media player div, or a YouTube embed or other.
                                 var openContentSection = $(".moveablesection:visible");
                                 if (openContentSection.length !== 0) {
-                                    var mediaPlayers = openContentSection.find(".mediaplugin iframe");
-                                    if (mediaPlayers.length !== 0) {
-                                        mediaPlayers.each(function (index, player) {
+                                    var iframes = openContentSection.find("iframe");
+                                    if (iframes.length !== 0) {
+                                        iframes.each(function (index, player) {
                                             player = $(player);
                                             if (player.outerWidth() > openContentSection.outerWidth()) {
                                                 // Video is present and playing full screen so don't react to resize event.
@@ -842,61 +721,9 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                             }, 600);
                         });
 
-                        // We want the main menu at the top to be on top of the tiles.
-                        // Even the ones which we have brought to the front on top of the window overlay.
-                        // But we also want it to still be greyed out.  So add an opaque overlay.
-                        // We can show this when the main overlay is active.
-                        // When a user clicks this overlay, they want to close the overlay and click menu item behind.
-                        // So provide for that here.
-                        // Z-INDICES: active tile will be at overlayZindex + 1.
-                        // Header bar will be at overlayZindex + 2 so that it is higher than tiles.
-                        // Header bar overlay will be at overlayZindex + 3 so that it is highest of all.
-
-                        var overlayZindex = parseInt(windowOverlay.css(CSS.Z_INDEX));
-                        var headerBar = $(Selector.HEADER_BAR.find(function(selector) {
-                            return $(selector).length > 0;
-                        }));
-                        if (headerBar !== undefined && headerBar.length !== 0) {
-                            headerBar.css(CSS.Z_INDEX, overlayZindex + 2);
-                            if (headerBar.attr("id") !== "navwrap") {
-                                // ID navwrap suggests theme is Adaptable based. We don't bother with header overlay if so.
-                                // Otherise the header bar has a separate mini overlay of its own - find and hide this.
-                                // If it is clicked, cancel tile selections and click the item behind where clicked.
-                                // Do not include for Moodle 3.5 or higher as not needed.
-                                if (headerBar.outerHeight() !== undefined) {
-                                    HEADER_BAR_HEIGHT = headerBar.outerHeight();
-                                    headerOverlay = $("<div></div>")
-                                        .addClass(ClassNames.HEADER_OVERLAY).attr("id", ClassNames.HEADER_OVERLAY)
-                                        .css(CSS.DISPLAY, "none");
-                                    headerOverlay.insertAfter(Selector.PAGE)
-                                        .css(CSS.Z_INDEX, (overlayZindex) + 3).css(CSS.HEIGHT, HEADER_BAR_HEIGHT)
-                                        .click(function (e) {
-                                            cancelTileSelections(0);
-                                            clickItemBehind(e);
-                                        });
-                                } else {
-                                    require(["core/log"], function(log) {
-                                        log.debug(
-                                            "Failed to get navbar.  Ensure theme's navbar selector is included in global HEADER_BAR"
-                                        );
-                                    });
-                                }
-                            }
-                        }
-
                         // When user clicks to close a section using cross at top right in section.
                         pageContent.on(Event.CLICK, Selector.CLOSE_SEC_BTN, function (e) {
                             cancelTileSelections($(e.currentTarget).attr("data-section"));
-                        });
-
-                        // If user clicks a sub tile body below the link, treat it as a click on the link itself.
-                        pageContent.on(Event.CLICK, Selector.LAUNCH_STANDARD, function(e) {
-                            var clickedLk = $(e.currentTarget);
-                            if (clickedLk.attr("href") !== undefined) {
-                                window.location = clickedLk.attr("href");
-                            } else if (clickedLk.find('a').attr("href") !== undefined) {
-                                window.location = clickedLk.find('a').attr("href");
-                            }
                         });
 
                         setSectionZeroFromUserPref();
@@ -904,9 +731,79 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
 
                     }
 
+                    // If this event is triggered, user has updated a completion check box.
+                    // We need to retrieve section content from server in case availability of items has changed.
+                    $(document).on('format-tiles-completion-changed', function(e, data) {
+                        const allSectionNums = $(Selector.TILE).not(Selector.SPACER).map((i, t) => {
+                            return parseInt($(t).attr('data-section'));
+                        }).toArray();
+                        // Need to include sec zero as may have completion tracked items.
+                        allSectionNums.push(0);
+                        const isSingleSectionPage = $('ul#single_section_tiles').length > 0;
+                        const requests = ajax.call([
+                            {
+                                methodname: "format_tiles_get_single_section_page_html",
+                                args: {
+                                    courseid: courseId,
+                                    sectionid: data.section,
+                                    setjsusedsession: !isSingleSectionPage
+                                }
+                            },
+                            {
+                                methodname: "format_tiles_get_section_information",
+                                args: {
+                                    courseid: courseId,
+                                    sectionnums: allSectionNums
+                                }
+                            }
+                        ]);
+                        requests[0]
+                            .done((response) => {
+                                setCourseContentHTML($(Selector.SECTION_ID + data.section), $(response.html).html(), response.js);
+                            })
+                            .catch(err => {
+                                require(["core/log"], function(log) {
+                                    log.debug(err);
+                                });
+                            });
+                        requests[1]
+                            .done((response) => {
+                                require(["format_tiles/completion"], function (completion) {
+                                    completion.updateSectionsInfo(
+                                        response.sections, response.overall.complete, response.overall.outof
+                                    );
+                                });
+
+                            })
+                            .catch(err => {
+                                require(["core/log"], function(log) {
+                                    log.debug(err);
+                                });
+                            });
+                    });
+
+                    if (enableCompletion) {
+                        // We use pageContent for listener here, as completion button is replaced by core JS when it's clicked.
+                        // We wait half a second to enable the completion change to be registered first.
+                        pageContent.on(Event.CLICK, Selector.MANUAL_COMPLETION, function(e) {
+                            const currentTarget = $(e.currentTarget);
+                            const sectionNum = currentTarget.closest(Selector.SECTION_MAIN).attr("data-section");
+                            const cmid = currentTarget.attr("data-cmid");
+                            require(["format_tiles/completion"], function (completion) {
+                                setTimeout(() => {
+                                    completion.triggerCompletionChangedEvent(
+                                        sectionNum ? parseInt(sectionNum) : 0,
+                                        cmid ? parseInt(cmid) : 0
+                                    );
+                                }, 500);
+                            });
+                        });
+                    }
+
+                    const sectionZero = $(Selector.SECTION_ZERO);
+
                     // When the user presses the button to collapse or expand Section zero (section at the top of the course).
                     pageContent.on(Event.CLICK, Selector.HIDE_SEC0_BTN, function (e) {
-                        var sectionZero = $(Selector.SECTION_ZERO);
                         if (sectionZero.css(CSS.DISPLAY) === "none") {
                             // Sec zero is collapsed so expand it on user click.
                             sectionZero.slideDown(250);
@@ -949,16 +846,28 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                         {key: "sectionerrortitle", component: "format_tiles"},
                         {key: "sectionerrorstring", component: "format_tiles"},
                         {key: "refresh"},
-                        {key: "cancel"},
+                        {key: "cancel", component: "moodle"},
                         {key: "noconnectionerror", component: "format_tiles"},
                         {key: "show"},
                         {key: "hide"},
-                        {key: "other", component: "format_tiles"},
-                        {key: "blockedpopuptitle", component: "format_tiles"}
+                        {key: "other", component: "format_tiles"}
                     ];
                     str.get_strings(stringKeys).done(function (s) {
                         s.forEach(function(str, index) {
-                            stringStore[stringKeys[index].key] = str;
+                            if (str) {
+                                stringStore[stringKeys[index].key] = str;
+                            } else {
+                                stringStore[stringKeys[index].key] = 'Error.';
+                                require(["core/log"], function(log) {
+                                    log.debug(`Format tiles get_strings error ${index}`);
+                                    log.debug(s);
+                                });
+                            }
+                        });
+                    })
+                    .fail(function(err) {
+                        require(["core/log"], function(log) {
+                            log.debug(err);
                         });
                     });
 
@@ -978,12 +887,8 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                                         cmid: cm.attr("data-cmid")
                                     }
                                 }])[0].done(function () {
-                                    // Because we intercepted the normal event for the click, process auto completion.
-                                    require(["format_tiles/completion"], function (completion) {
-                                        completion.markAsAutoCompleteInUI(courseId, cm);
-                                    });
+                                    window.location = url;
                                 });
-                                window.location = url;
                             }
                         });
                     } else {
@@ -1001,20 +906,8 @@ define(["jquery", "core/templates", "core/ajax", "format_tiles/browser_storage",
                         });
 
                         // Move focus to the first tile in the course (not sec zero contents if present).
-                        $("ul.tiles .tile").first().focus();
+                        // $("ul.tiles .tile").first().focus();
                     }
-
-                    // If Adaptable theme is being used, and Glossary auto link filter is on, we need this.
-                    // Otherwise when the auto link is clicked, the resulting dialogue is under the main overlay.
-                    // Don't need this when Boost or Clean themes are used as they handle it themselves.
-                    $(document).on("filter-content-updated", function (event, msg) {
-                        if (msg.length > 0) {
-                            var elem = $(msg[0]);
-                            if (elem.hasClass("moodle-dialogue") && elem.css("z-index") < backDropZIndex) {
-                                    elem.css("z-index", backDropZIndex + 1);
-                            }
-                        }
-                    });
                 });
             }
         };

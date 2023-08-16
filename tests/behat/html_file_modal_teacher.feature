@@ -27,8 +27,7 @@ Feature: HTML file can be set to open in modal windows with subtiles off
       | assumedatastoreconsent | 1        | format_tiles |
       | reopenlastsection      | 0        | format_tiles |
       | usejavascriptnav       | 1        | format_tiles |
-      | jsmaxstoreditems       | 0        | format_tiles |
-    # We set jsmaxstoreditems to zero as otherwise when we switch between subtiles and tiles format we may not see an immediate change in display
+
     When I log in as "teacher1"
     And format_tiles subtiles are off for course "Course 1"
     And I am on "Course 1" course homepage with editing mode on
@@ -66,10 +65,17 @@ Feature: HTML file can be set to open in modal windows with subtiles off
     And I wait until the page is ready
     Then "Test HTML file" "dialogue" should be visible
 #    TODO test that we can see "Test HTML file content" too (is in embedded HTML document virtual element)?
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
+
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
+
     And "Close" "button" should exist in the "Test HTML file" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test HTML file" "dialogue"
     And I wait until the page is ready
     And "Test HTML file" "dialogue" should not be visible
     And I click on close button for tile "1"
@@ -87,10 +93,15 @@ Feature: HTML file can be set to open in modal windows with subtiles off
     And I wait until the page is ready
     Then "Test HTML file" "dialogue" should be visible
     #    TODO test that we can see "Test HTML file content" too (is in embedded HTML document virtual element)?
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test HTML file" "dialogue"
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test HTML file" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test HTML file" in "Course 1" is "0" in the database
     And "Close" "button" should exist in the "Test HTML file" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test HTML file" "dialogue"
     And I wait until the page is ready
     And "Test HTML file" "dialogue" should not be visible
     And I click on close button for tile "1"

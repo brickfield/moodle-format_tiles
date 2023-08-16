@@ -24,19 +24,22 @@
 
 require_once('../../../config.php');
 
-global $PAGE, $DB;
+global $PAGE, $DB, $OUTPUT;
 
 require_login();
-require_sesskey();
-$context = context_system::instance();
-require_capability('moodle/site:config', $context);
-$sesskey = required_param('sesskey', PARAM_TEXT);
+$systemcontext = context_system::instance();
+
+// Admins only for this page.
+if (!has_capability('moodle/site:config', $systemcontext)) {
+    throw new moodle_exception('You do not have permission to perform this action.');
+}
+
 $action = required_param('action', PARAM_TEXT);
-$pageurl = new moodle_url('/course/format/tiles/admintools.php', array('sesskey' => $sesskey, 'action' => $action));
+$pageurl = new moodle_url('/course/format/tiles/admintools.php', array('action' => $action));
 $settingsurl = new moodle_url('/admin/settings.php', array('section' => 'formatsettingtiles'));
 
 $PAGE->set_url($pageurl);
-$PAGE->set_context($context);
+$PAGE->set_context($systemcontext);
 $PAGE->set_heading(get_string('admintools', 'format_tiles'));
 $PAGE->navbar->add(get_string('administrationsite'), new moodle_url('/admin/search.php'));
 $PAGE->navbar->add(get_string('plugins', 'admin'), new moodle_url('/admin/category.php', array('category' => 'modules')));
@@ -44,7 +47,66 @@ $PAGE->navbar->add(get_string('courseformats'), new moodle_url('/admin/category.
 $PAGE->navbar->add(get_string('pluginname', 'format_tiles'), $settingsurl);
 $PAGE->navbar->add(get_string('admintools', 'format_tiles'));
 
-if ($action === "resetcolours") {
+$o = '';
+
+switch ($action) {
+    case 'resetcolours':
+        $o = reset_colours($settingsurl, $pageurl);
+        break;
+    case 'deleteemptysections':
+        schedule_delete_empty_sections();
+        break;
+    case 'reordersections':
+        resolve_section_misnumbering();
+        break;
+    case 'canceldeleteemptysections':
+        cancel_delete_empty_sections();
+        break;
+    case 'listproblemcourses':
+        $o = list_problem_courses();
+        break;
+    default:
+        break;
+}
+
+echo $OUTPUT->header();
+echo $o;
+echo $OUTPUT->footer();
+
+/**
+ * Get an array of all the permitted colour hex values allowed by site admin in plugin settings.
+ * @package format_tiles
+ * @return array
+ * @throws dml_exception
+ */
+function permitted_colours() {
+    global $DB;
+    $records = $DB->get_records_select(
+        'config_plugins',
+        "plugin = 'format_tiles' AND " . $DB->sql_like('name', '?', false), array("tilecolour%")
+    );
+    $permittedcolours = [];
+    foreach ($records as $record) {
+        if (hexdec($record->value) !== 0) {
+            // If the colour is #000 or #000000 we ignore as this means admin has disabled the colour.
+            $permittedcolours[] = $record->value;
+        }
+    }
+    return $permittedcolours;
+}
+
+/**
+ * Function to allow site admin to reset course colours to allowed settings from Site Admin > Plugins page.
+ * @param moodle_url $settingsurl
+ * @param moodle_url $pageurl
+ * @return string
+ * @throws coding_exception
+ * @throws dml_exception
+ * @throws moodle_exception
+ */
+function reset_colours($settingsurl, $pageurl) {
+    global $DB;
+    require_sesskey();
     $permittedcolours = permitted_colours();
     if (count($permittedcolours) === 0) {
         redirect(
@@ -67,11 +129,12 @@ if ($action === "resetcolours") {
         if ($requiredchangecount === 0) {
             redirect($settingsurl, get_string('allcoursescomplypalette', 'format_tiles'));
         } else {
-            echo $OUTPUT->header();
-            echo html_writer::div(get_string('sureresetcolours', 'format_tiles', $requiredchangecount), 'mb-3 mt-3');
             $pageurl->param('sure', '1');
-            echo html_writer::link($pageurl, get_string('resetcolours', 'format_tiles'), array('class' => 'btn btn-danger'));
-            echo html_writer::link($settingsurl, get_string('cancel'), array('class' => 'btn btn-secondary'));
+            $pageurl->param('sesskey', sesskey());
+            $o = html_writer::div(get_string('sureresetcolours', 'format_tiles', $requiredchangecount), 'mb-3 mt-3');
+            $o .= html_writer::link($pageurl, get_string('resetcolours', 'format_tiles'), array('class' => 'btn btn-danger'));
+            $o .= html_writer::link($settingsurl, get_string('cancel'), array('class' => 'btn btn-secondary'));
+            return $o;
         }
     } else {
         // User has said they are sure so go ahead and reset.
@@ -98,27 +161,124 @@ if ($action === "resetcolours") {
             get_string('tilecolourschanged', 'format_tiles'), null, \core\output\notification::NOTIFY_SUCCESS
         );
     }
+    return '';
 }
-echo $OUTPUT->footer();
 
 /**
- * Get an array of all the permitted colour hex values allowed by site admin in plugin settings.
- * @package format_tiles
- * @return array
+ * Allow site admin to schedule a deletion of empty sections from courses (from admintools.php).
+ * @throws coding_exception
  * @throws dml_exception
+ * @throws moodle_exception
  */
-function permitted_colours() {
-    global $DB;
-    $records = $DB->get_records_select(
-        'config_plugins',
-        "plugin = 'format_tiles' AND " . $DB->sql_like('name', '?', false), array("tilecolour%")
+function schedule_delete_empty_sections() {
+    require_sesskey();
+    $courseid = required_param('courseid', PARAM_INT);
+    $course = get_course($courseid);
+    format_tiles\course_section_manager::schedule_empty_sec_deletion($course->id);
+    redirect(
+        \format_tiles\course_section_manager::get_list_problem_courses_url(),
+        get_string('scheduleddeleteemptysections', 'format_tiles'),
+        null,
+        core\output\notification::NOTIFY_SUCCESS
     );
-    $permittedcolours = [];
-    foreach ($records as $record) {
-        if (hexdec($record->value) !== 0) {
-            // If the colour is #000 or #000000 we ignore as this means admin has disabled the colour.
-            $permittedcolours[] = $record->value;
+}
+
+/**
+ * Allow site admin to cancel scheduled deletion
+ * @see schedule_delete_empty_sections()
+ * @throws coding_exception
+ * @throws moodle_exception
+ */
+function cancel_delete_empty_sections() {
+    $courseid = required_param('courseid', PARAM_INT);
+    format_tiles\course_section_manager::cancel_empty_sec_deletion($courseid);
+    redirect(
+        \format_tiles\course_section_manager::get_list_problem_courses_url(),
+        get_string('cancelled'),
+        null,
+        core\output\notification::NOTIFY_SUCCESS
+    );
+}
+
+/**
+ * Get a HTML table of problem courses (too many / badly numbered sections) for display to admin.
+ * @return string
+ * @throws coding_exception
+ * @throws dml_exception
+ * @throws moodle_exception
+ */
+function list_problem_courses() {
+    $maxsections = \format_tiles\course_section_manager::get_max_sections();
+
+    // Find the courses which have section numbers we would not expect (too high).
+    $problemcourses = \format_tiles\course_section_manager::get_problem_courses($maxsections);
+
+    $o = html_writer::tag(
+        'h2',
+        get_string('problemcourses', 'format_tiles')
+        . ' (' . get_string('experimentalfeature', 'format_tiles') . ')'
+    );
+
+    if (count($problemcourses)) {
+        $displaycourses = [];
+        foreach ($problemcourses as $problemcourse) {
+            $courseurl = new moodle_url(
+                '/course/view.php',
+                ['id' => $problemcourse->id, 'edit' => 'on', 'sesskey' => sesskey()]
+            );
+            $displaycourse = new \stdClass();
+            $displaycourse->link = html_writer::link(
+                $courseurl,
+                $problemcourse->fullname,
+                ['target' => '_blank']
+            );
+            $displaycourse->count_sections = $problemcourse->count_sections;
+            $displaycourse->max_section_number = $problemcourse->max_section_number;
+            if ($problemcourse->count_sections > $maxsections) {
+                $displaycourse->action = \format_tiles\course_section_manager::get_schedule_button($problemcourse->id);
+            } else {
+                $url = new moodle_url(
+                    '/course/format/tiles/admintools.php',
+                    ['action' => 'reordersections', 'courseid' => $problemcourse->id, 'sesskey' => sesskey()]
+                );
+                $displaycourse->action = html_writer::link(
+                    $url,
+                    get_string('fixproblems', 'format_tiles'),
+                    ['target' => '_blank', 'class' => 'btn btn-secondary ml-2']
+                );
+            }
+            $displaycourses[] = $displaycourse;
         }
+        $table = new html_table();
+        $table->caption = get_string('problemcourses', 'format_tiles');
+        $table->head = array(
+            get_string('course'),
+            get_string('numberofsections', 'format_tiles'),
+            get_string('highestsectionnum', 'format_tiles'),
+            get_string('action')
+        );
+        $table->data = $displaycourses;
+
+        $o .= html_writer::div(get_string('problemcoursesintro', 'format_tiles'));
+        $o .= html_writer::div(get_string('maxcoursesectionsallowed', 'format_tiles', $maxsections));
+        $o .= html_writer::table($table);
+    } else {
+        $o .= html_writer::div(
+            get_string('noproblemsfound', 'format_tiles'),
+            'alert alert-success'
+        );
     }
-    return $permittedcolours;
+    return $o;
+}
+
+/**
+ * Allow site admin to fix a section with mis-numbering.
+ * @throws coding_exception
+ * @throws moodle_exception
+ */
+function resolve_section_misnumbering() {
+    $courseid = required_param('courseid', PARAM_INT);
+    require_sesskey();
+    \format_tiles\course_section_manager::resolve_section_misnumbering($courseid);
+    redirect(\format_tiles\course_section_manager::get_list_problem_courses_url());
 }

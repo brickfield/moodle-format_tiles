@@ -27,8 +27,6 @@ Feature: PDFs can be set to open in modal windows
       | assumedatastoreconsent | 1        | format_tiles |
       | reopenlastsection      | 0        | format_tiles |
       | usejavascriptnav       | 1        | format_tiles |
-      | jsmaxstoreditems       | 0        | format_tiles |
-    # We set jsmaxstoreditems to zero as otherwise when we switch between subtiles and tiles format we may not see an immediate change in display
 
     # Add PDF to course so student can see it in test
     And I log in as "teacher1"
@@ -68,10 +66,16 @@ Feature: PDFs can be set to open in modal windows
     And I click format tiles activity "Test PDF"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should be visible
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
+
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
     And "Close" "button" should exist in the "Test PDF" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test PDF" "dialogue"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should not be visible
     And I click on close button for tile "1"
@@ -89,10 +93,16 @@ Feature: PDFs can be set to open in modal windows
     And I click format tiles activity "Test PDF"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should be visible
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
+
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
     And "Close" "button" should exist in the "Test PDF" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test PDF" "dialogue"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should not be visible
     And I click on close button for tile "1"
@@ -110,16 +120,21 @@ Feature: PDFs can be set to open in modal windows
     And I click format tiles activity "Test PDF"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should be visible
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
     And "Close" "button" should exist in the "Test PDF" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test PDF" "dialogue"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should not be visible
     And I click on close button for tile "1"
     And I log out tiles
 
-  # Now the same again for teacher with subtiles on
+  # Now the same again for student with subtiles on
   @javascript
   Scenario: Open modal PDF as student with subtiles on
     When format_tiles subtiles are on for course "Course 1"
@@ -131,10 +146,15 @@ Feature: PDFs can be set to open in modal windows
     And I click format tiles activity "Test PDF"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should be visible
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
-    And I click on "Click to toggle completion status" "button" in the "Test PDF" "dialogue"
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
+    And I click on "Mark as done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "1" in the database
+    And I click on "Done" "button" in the "Test PDF" "dialogue"
+    And I wait until the page is ready
+    And format_tiles progress for "resource" called "Test PDF" in "Course 1" is "0" in the database
     And "Close" "button" should exist in the "Test PDF" "dialogue"
-    And I click on "Close" "button"
+    And I click on "Close" "button" in the "Test PDF" "dialogue"
     And I wait until the page is ready
     And "Test PDF" "dialogue" should not be visible
     And I click on close button for tile "1"
